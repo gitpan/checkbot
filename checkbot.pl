@@ -27,7 +27,7 @@ print OUT <<'!NO!SUBS!';
 #
 # Info-URL: http://dutifp.twi.tudelft.nl:8000/checkbot/
 #
-# $Id: checkbot.pl,v 1.39 1996/09/25 13:25:48 graaff Exp $
+# $Id: checkbot.pl,v 1.44 1996/12/11 16:16:07 graaff Exp $
 # (Log information can be found at the end of the script)
 
 require 5.001;
@@ -42,9 +42,12 @@ Checkbot - WWW Link Verifier
 
 =head1 SYNOPSIS
 
-checkbot [B<-dhv>] [B<-u> <start URL>] [B<-m> <match string>] [B<-x> <exclude string>] 
-         [B<-z> <ignore string>] [B<-f> <file name>] [B<-M> <email address>]
-         [B<-N> <note>] [B<-s> <seconds>] [B<-t> <timeout>]
+checkbot [B<--debug>] [B<--help>] [B<--verbose>] [B<--url> start URL] 
+         [B<--match> match string] [B<--exclude> exclude string]
+         [B<--proxy> proxy URL]
+         [B<--ignore> ignore string] [B<-file> file name] 
+         [B<--mailto> email address]
+         [B<--note> note] [B<--sleep> seconds] [B<--timeout> timeout]
 
 =head1 DESCRIPTION
 
@@ -55,12 +58,12 @@ Checkbot's options are:
 
 =over 4
 
-=item -u <start URL>
+=item --url <start URL>
 
 Set the start URL. Checkbot starts checking at this URL, and then
 recursively checks alls links found on the page.
 
-=item -m <match string>
+=item --match <match string>
 
 This option selects which pages Checkbot considers local. If the
 I<match string> is contained within the URL, then Checkbot considers
@@ -69,18 +72,18 @@ on it. Otherwise the page is considered external and it is only
 checked with a HEAD request.
 
 If no explicit I<match string> is given, the start URL (See option
-C<-u>) will be used as a match string instead.
+C<--url>) will be used as a match string instead.
 
 The I<match string> can be a perl regular expression.
 
-=item -x <exclude string>
+=item --exclude <exclude string>
 
 URLs matching the I<exclude string> are considered to be external,
-even if they happen to match the I<match string> (See option C<-m>).
+even if they happen to match the I<match string> (See option C<--match>).
 
 The I<exclude string> can be a perl regular expression.
 
-=item -z <ignore string>
+=item --ignore <ignore string>
 
 If a URL has an error, and matches the I<ignore string>, its error
 will not be listed. This can be useful to stop certain errors from
@@ -88,42 +91,53 @@ being listed.
 
 The I<ignore string> can be a perl regular expression.
 
-=item -M <email address>
+=item --proxy <proxy URL>
+
+This attribute specifies the URL for a proxy server.  Only external URLs 
+are queried through this proxy server, because Checkbot assumes all 
+internal URLs can be accessed directly.  Currently only the HTTP and FTP 
+protocols will be send to the proxy server.
+
+Note that I personally have no use for this feature, and in its current 
+state it is mostly useful for people behind a firewall.  I'd appriciate 
+feedback or comments about how this option could be more useful to you.
+
+=item --mailto <email address>
 
 Send mail to the I<email address> when Checkbot is done
 checking. Includes a small summary of the results.
 
-=item -N <note>
+=item --note <note>
 
 The I<note> is included verbatim in the mail message (See option
-C<-M>). This can be useful to include the URL of the summary HTML page
+C<--mailto>). This can be useful to include the URL of the summary HTML page
 for easy reference, for instance.
 
-Only meaningful in combination with the C<-M> option.
+Only meaningful in combination with the C<--mailto> option.
 
-=item -h 
+=item --help
 
 Shows brief help message on the standard output.
 
-=item -v 
+=item --verbose
 
 Show verbose output while running. Includes all links checked, results
 from the checks, etc.
 
-=item -d 
+=item --debug
 
 Enable debugging mode. Not really supported anymore.
 
-=item -s <seconds>
+=item --sleep <seconds>
 
 Number of I<seconds> to sleep in between requests. Default is 2 seconds. 
 
-=item -t <timeout>
+=item --timeout <timeout>
 
 Default timeout for the requests, specified in seconds. The default is
 2 minutes.
 
-=item -f <file name>
+=item --file <file name>
 
 Write the summary pages into file I<file name>. Default is C<checkbot.html>.
 
@@ -140,7 +154,7 @@ use AnyDBM_File;
 @AnyDBM_File::ISA = qw(DB_File GDBM_File NDBM_File);
 
 # Version information
-($main::VERSION) = sprintf("%d.%02d", q$Revision: 1.39 $ =~ /(\d+)\.(\d+)/);
+($main::VERSION) = sprintf("%d.%02d", q$Revision: 1.44 $ =~ /(\d+)\.(\d+)/);
 
 &check_options();
 &init_modules();
@@ -157,7 +171,7 @@ undef %main::checked;
 &check_external();
 
 &create_page(1);
-&send_mail if defined $main::opt_M;
+&send_mail if defined $main::opt_mailto;
 
 &clean_up();
 
@@ -168,24 +182,25 @@ exit 0;
 sub check_options {
 
   # Get command-line arguments
-  use Getopt::Std;
-  getopts('dhvu:m:x:f:s:t:M:N:z:');
+  use Getopt::Long;
+  my $result = GetOptions(qw(debug help verbose url=s match=s exclude|x=s file=s ignore|z=s mailto|M=s note|N=s proxy=s sleep=i timeout=i));
 
   # Handle arguments, some are mandatory, some have defaults
-  &print_help if ($main::opt_h && $main::opt_h) || !$main::opt_u;
-  $main::opt_t = 120 unless defined($main::opt_t) && length($main::opt_t);
-  $main::opt_v = 0 unless $main::opt_v;
-  $main::opt_s = 2 unless defined($main::opt_s) && length($main::opt_s);
-  $main::opt_m = $main::opt_u unless defined $main::opt_m;
+  &print_help if ($main::opt_help && $main::opt_help) || !$main::opt_url;
+  $main::opt_timeout = 120 unless defined($main::opt_timeout) && length($main::opt_timeout);
+  $main::opt_verbose = 0 unless $main::opt_verbose;
+  $main::opt_sleep = 2 unless defined($main::opt_sleep) && length($main::opt_sleep);
+  # The default for opt_match will be set later, because we might want
+  # to muck with opt_url first.
 
   # Work on the regular expressions in -m and -x: escape all 
   # regular expression characters
-  $main::opt_x =~ s/([\.\/\\\+\?\~\@])/\\$1/g if defined($main::opt_x);
-  $main::opt_z =~ s/([\.\/\\\+\?\~\@])/\\$1/g if defined($main::opt_z);
-  $main::opt_m =~ s/([\.\/\\\+\?\~\@])/\\$1/g if defined($main::opt_m);
+  $main::opt_exclude =~ s/([\.\/\\\+\?\~\@])/\\$1/g if defined($main::opt_exclude);
+  $main::opt_ignore =~ s/([\.\/\\\+\?\~\@])/\\$1/g if defined($main::opt_ignore);
+  $main::opt_match =~ s/([\.\/\\\+\?\~\@])/\\$1/g if defined($main::opt_match);
 
   # Display messages about the options
-  print STDERR "*** Starting in verbose mode\n" if $main::opt_v;
+  print STDERR "*** Starting in verbose mode\n" if $main::opt_verbose;
 
 }
 
@@ -194,17 +209,18 @@ sub init_modules {
   # Prepare the user agent to be used:
   use LWP::UserAgent;
   use LWP::MediaTypes;
+  #use LWP::Debug qw(- +debug);
   use HTML::Parse;
   use HTML::LinkExtor;
   $main::ua = new LWP::UserAgent;
   $main::ua->agent("Checkbot/$main::VERSION LWP/" . LWP::Version);
-  $main::ua->timeout($main::opt_t);
+  $main::ua->timeout($main::opt_timeout);
 
   # Don't use strict parsing, it is very likely we will
   # encounter invalid HTML documents on the way.
   URI::URL::strict(0);
 
-  require Mail::Send if defined $main::opt_M;
+  require Mail::Send if defined $main::opt_mailto;
 }
 
 sub init_globals {
@@ -213,15 +229,15 @@ sub init_globals {
   $main::start_time = localtime();
 
   # Directory and files for output
-  if ($main::opt_f) {
-    $main::file = $main::opt_f;
+  if ($main::opt_file) {
+    $main::file = $main::opt_file;
     $main::file =~ /([^\.]+)\./;
     $main::server_prefix = $1;
   } else { 
     $main::file = "checkbot.html";
     $main::server_prefix = "checkbot";
   }
-  $main::tmpdir = "/var/tmp/" . "Checkbot.$$";
+  $main::tmpdir = "/tmp/" . "Checkbot.$$";
 
   $main::cur_queue  = $main::tmpdir . "/queue";
   $main::new_queue  = $main::tmpdir . "/queue-new";
@@ -234,11 +250,12 @@ sub init_globals {
 
   # Start URL
   # Create the start URL
-  $main::starturl = new URI::URL $main::opt_u;
+  $main::starturl = new URI::URL $main::opt_url;
 
   if ($main::starturl->scheme eq 'file') {
     $main::starturl->host('localhost');
   }
+  $main::opt_match = $main::opt_url unless defined $main::opt_match;
 
   # Variables to keep track of number of links
   $main::LINKS = 0;
@@ -280,7 +297,7 @@ sub setup {
 
 ### Cleaning up after running Checkbot
 sub clean_up {
-  unless (defined($main::opt_d)) {
+  unless (defined($main::opt_debug)) {
     unlink $main::cur_queue, $main::new_queue, $main::extfile;
     rmdir $main::tmpdir;
   }
@@ -306,7 +323,7 @@ sub check_internal {
     # things to do
     if ($main::st_int[$main::TODO]) {
       print STDERR "*** Moving queues around, $main::st_int[$main::TODO] to do\n" 
-	if $main::opt_v;
+	if $main::opt_verbose;
       close CURRENT;
       close QUEUE;
 
@@ -339,9 +356,10 @@ sub handle_url {
   my $url = new URI::URL $urlstr;
   $main::st_int[$main::LINKS]++;
 	
-  if ($url->scheme =~ /^(http|file|ftp|gopher|nntp)$/o
+  if (defined($url->scheme) 
+      && $url->scheme =~ /^(http|file|ftp|gopher|nntp)$/o
       && $url->path !~ /$main::file/
-      && $url->path !~ /=/o ) {
+      && $url->path !~ /[=\?]/o ) {
     if ($url->path =~ /\/$/o || $url->path eq "") {
       $type = 'text/html';
     } else {
@@ -355,34 +373,34 @@ sub handle_url {
 
     # Output what we are going to do with this link
     printf STDERR "    %4s %s (%s)\n", $reqtype, $url, $type
-      if $main::opt_v;
+      if $main::opt_verbose;
 	
     my $ref_header = new HTTP::Headers 'Referer' => $urlparent;
     my $request = new HTTP::Request($reqtype, $url, $ref_header);
     my $response = $main::ua->simple_request($request);
 
     if ($response->is_success) {
-      sleep($main::opt_s) unless $main::opt_d || $url->scheme eq 'file';
+      sleep($main::opt_sleep) unless $main::opt_debug || $url->scheme eq 'file';
 
       # If this url moves off of this site then return now
-      if ($url !~ /$main::opt_m/o 
-	  || (defined $main::opt_x && $url =~ /$main::opt_x/o)) {
-	print STDERR " Exclude $url\n" if $main::opt_v;
+      if ($url !~ /$main::opt_match/o 
+	  || (defined $main::opt_exclude && $url =~ /$main::opt_exclude/o)) {
+	print STDERR " Exclude $url\n" if $main::opt_verbose;
       } else {
 	&handle_doc($response) if $reqtype eq 'GET';
       }
     } else {
-      if (defined $main::opt_z && $url =~ /$main::opt_z/o) {
-	print STDERR "Ignore  $url\n" if $main::opt_v;
+      if (defined $main::opt_ignore && $url =~ /$main::opt_ignore/o) {
+	print STDERR "Ignore  $url\n" if $main::opt_verbose;
       } else {
 	print STDERR "         ", $response->code, ' ', $response->message, "\n" 
-	  if $main::opt_v;
+	  if $main::opt_verbose;
 	$main::problem{$url} = $response;
 	$main::st_int[$main::PROBL]++;
       }
 
       if ($response->is_redirect) {
-	print STDERR "         Redirected to " . $response->header('Location') . "\n" if $main::opt_v;
+	print STDERR "         Redirected to " . $response->header('Location') . "\n" if $main::opt_verbose;
 	add_to_queue($response->header('Location'), $urlparent);
       }
     }
@@ -390,7 +408,7 @@ sub handle_url {
     # Done with this URL
   } else {
     # not interested in other URLs right now
-    print STDERR "  Ignore $url\n" if $main::opt_v;
+    print STDERR "  Ignore $url\n" if $main::opt_verbose;
   }
 }
 
@@ -399,6 +417,11 @@ sub check_external {
   my $urlparent;
   my $prevurl = "";
   my $reqtype;
+
+  # Add a proxy to the user agent, if defined
+  $main::ua->proxy(['http', 'ftp'], $main::opt_proxy) 
+    if defined($main::opt_proxy);
+
 
   # We use an external sort and uniq program, because they
   # usually handle large files much better
@@ -416,7 +439,7 @@ sub check_external {
   close WC;
 
   print STDERR "*** Checking $main::st_ext[$main::TODO] external links\n"
-    if defined $main::opt_v;
+    if defined $main::opt_verbose;
   # We know that our list is sorted, but the same URL
   # can exist several types, once for each parent
   # For now we just look at the first url/parent pair, but
@@ -444,18 +467,18 @@ sub check_external {
 
       $reqtype = ($url->scheme =~ /^gopher$/o) ? 'GET' : 'HEAD';
 
-      print STDERR "     $reqtype ", $url->abs, "\n" if $main::opt_v;
+      print STDERR "     $reqtype ", $url->abs, "\n" if $main::opt_verbose;
       my $ref_header = new HTTP::Headers 'Referer' => $urlparent;
       my $request = new HTTP::Request($reqtype, $url, $ref_header);
       my $response = $main::ua->simple_request($request);
       
       if ($response->is_error || $response->is_redirect) {
-	if (defined $main::opt_z && $url =~ /$main::opt_z/o) {
+	if (defined $main::opt_ignore && $url =~ /$main::opt_ignore/o) {
 	  print STDERR "Ignore  $url error\n";
 	} else {
 	  printf STDERR "          %d (%s)\n", $response->code, 
 	  $response->message
-	    if $main::opt_v;
+	    if $main::opt_verbose;
 	  $main::problem{$url} = $response;
 	  $main::st_ext[$main::PROBL]++;
 	}
@@ -481,28 +504,29 @@ sub create_page {
     my $prevcode = 0;
     my $prevmessage = "";
 
-    print STDERR "*** Start writing results page\n" if $main::opt_v;
+    print STDERR "*** Start writing results page\n" if $main::opt_verbose;
 
     open(OUT, ">$main::file.new") 
 	|| die "$0: Unable to open $main::file.bak for writing:\n";
     print OUT "<head>\n";
     if (!$final_page) {
       printf OUT "<META HTTP-EQUIV=\"Refresh\" CONTENT = %d>\n",
-      $main::cp_int * 60;
+      int($main::cp_int * 60 / 2 - 5);
     }
 
     print OUT "<title>Checkbot report</title></head>\n";
     print OUT "<h1><em>Checkbot</em>: main report</h1>\n";
 
     # Show the status of this checkbot session
-    print OUT "<b>Status:</b> ";
+    print OUT "<table><tr><th>Status:</th><td>";
     if ($final_page) {
       print OUT "Done.\n"
     } else {
-      print OUT "Running since $main::start_time.\n";
-      print OUT "(Last update at ". localtime() 
-	. ", next update in <b>$main::cp_int</b> minutes.)\n";
+      print OUT "Running since $main::start_time.<br>\n";
+      print OUT "Last update at ". localtime() . ".<br>\n";
+      print OUT "Next update in <b>", int($main::cp_int), "</b> minutes.\n";
     }
+    print OUT "</td></tr></table>\n\n";
 
     # Summary (very brief overview of key statistics)
     print OUT "<hr><h2>Report summary</h2>\n";
@@ -543,10 +567,10 @@ sub create_page {
     # Checkbot session parameters
     print OUT "<h2>Checkbot session parameters</h2>\n";
     print OUT "<table>\n";
-    print OUT "<tr><th>-u</th><td>Start URL</td><td>$main::starturl</td></tr>\n";
-    print OUT "<tr><th>-m</th><td>Match regular expression</td><td>$main::opt_m</td></tr>\n";
-    print OUT "<tr><th>-x</th><td>Exclude regular expression</td><td>$main::opt_x</td></tr>\n" if defined $main::opt_x;
-    print OUT "<tr><th>-z</th><td>Ignore regular expression</td><td>$main::opt_z</td></tr>\n" if defined $main::opt_z;
+    print OUT "<tr><th>--url</th><td>Start URL</td><td>$main::starturl</td></tr>\n";
+    print OUT "<tr><th>--match</th><td>Match regular expression</td><td>$main::opt_match</td></tr>\n";
+    print OUT "<tr><th>--exclude</th><td>Exclude regular expression</td><td>$main::opt_exclude</td></tr>\n" if defined $main::opt_exclude;
+    print OUT "<tr><th>--ignore</th><td>Ignore regular expression</td><td>$main::opt_ignore</td></tr>\n" if defined $main::opt_ignore;
     
     print OUT "</table>\n";
 
@@ -559,7 +583,7 @@ sub create_page {
     rename($main::file, $main::file . ".bak");
     rename($main::file . ".new", $main::file);
 
-    print STDERR "*** Done writing result page\n" if $main::opt_v;
+    print STDERR "*** Done writing result page\n" if $main::opt_verbose;
 }
 
 
@@ -577,23 +601,29 @@ sub get_server_type {
       $result = $response->header('Server');
     }
     $result = "Unknown server type" if $result eq "";
-    print STDERR "=== Server $server is a $result\n" if $main::opt_v;
+    print STDERR "=== Server $server is a $result\n" if $main::opt_verbose;
     $main::server_type{$server} = $result;
   }
   $main::server_type{$server};
 }
 
 sub add_checked {
-  my($url) = @_;
+  my($urlstr) = @_;
   my $item;
   my $result = 0;
 
-  if (defined $main::checked{$url}) {
+  # Substitute hostname with IP-address. This keeps us from checking 
+  # the same pages for each name of the server, wasting time & resources.
+  my $url = new URI::URL $urlstr;
+  $url->host(ip_address($url->host));
+  $urlstr = $url->as_string;
+
+  if (defined $main::checked{$urlstr}) {
     $result = 1;
     $main::st_int[$main::DUPS]++;
-    $main::checked{$url}++;
+    $main::checked{$urlstr}++;
   } else {
-    $main::checked{$url} = 1;
+    $main::checked{$urlstr} = 1;
   }
 
   return $result;
@@ -622,7 +652,7 @@ sub handle_doc {
       # Remove fragments, if any
       $url->frag(undef);
 
-      if ($url->abs =~ /$main::opt_m/o) {
+      if ($url->abs =~ /$main::opt_match/o) {
 	if (defined $main::checked{$url->abs}) {
 	  $doc_dup++;
 	} else {
@@ -641,7 +671,7 @@ sub handle_doc {
   $main::st_int[$main::DUPS] += $doc_dup;
   $main::st_ext[$main::LINKS] += $doc_ext;
   $main::st_ext[$main::TODO] += $doc_ext;
-  if ($main::opt_v) {
+  if ($main::opt_verbose) {
     my @string = ();
     push(@string, "$doc_new new") if $doc_new > 0;
     push(@string, "$doc_dup dup") if $doc_dup > 0;
@@ -660,7 +690,7 @@ sub add_to_queue {
 sub print_server {
   my($server, $final_page) = @_;
 
-  print STDERR "    Writing server $server\n" if $main::opt_v;
+  print STDERR "    Writing server $server (really ", ip_address($server), ")\n" if $main::opt_verbose;
 
   my $server_problem = &count_problems($server);
   my $filename = "$main::server_prefix-$server.html";
@@ -689,7 +719,7 @@ sub print_server {
   print SERVER "<head>\n";
   if (!$final_page) {
     printf SERVER "<META HTTP-EQUIV=\"Refresh\" CONTENT = %d>\n",
-      $main::cp_int * 60;
+      int($main::cp_int * 60 / 2 - 5);
   }
   print SERVER "<title>Checkbot: output for server $server</title></head>\n";
   print SERVER "<body><h2><em>Checkbot</em>: report for server <tt>$server</tt></h2>\n";
@@ -746,61 +776,77 @@ sub print_server_problems {
 
 sub check_point {
     if ( ($main::cp_last + 60 * $main::cp_int < time()) 
-	 || ($main::opt_d && $main::opt_v)) {
+	 || ($main::opt_debug && $main::opt_verbose)) {
 	&create_page(0);
 	$main::cp_last = time();
-	$main::cp_int = int($main::cp_int * 1.5 + 0.5) unless $main::opt_d;
+	$main::cp_int = $main::cp_int * 1.25
+          unless ($main::opt_debug or $main::cp_int > 3 * 3600);
     }
 }
 
 sub send_mail {
   my $msg = new Mail::Send;
 
-  $msg->to($main::opt_M);
-  $msg->subject("Checkbot results for $main::opt_u available.");
+  $msg->to($main::opt_mailto);
+  $msg->subject("Checkbot results for $main::opt_url available.");
 
   my $fh = $msg->open;
 
-  print $fh "Checkbot results for $main::opt_u are available.\n\n";
-  print $fh "User-supplied note: $main::opt_N\n\n"
-    if defined $main::opt_N;
+  print $fh "Checkbot results for $main::opt_url are available.\n\n";
+  print $fh "User-supplied note: $main::opt_note\n\n"
+    if defined $main::opt_note;
 
   print $fh "A brief summary of the results follows:\n\n";
   printf $fh "Internal: %6d total, %6d unique, %6d problems, ratio = %3d%%\n",
   $main::st_int[$main::LINKS] + $main::st_int[$main::DUPS],
   $main::st_int[$main::LINKS], $main::st_int[$main::PROBL],
   $main::st_int[$main::PROBL] / $main::st_int[$main::LINKS] * 100;
-  printf $fh "External: %6d total, %6d unique, %6d problems, ratio = %3d%%\n",
-  $main::st_ext[$main::LINKS] + $main::st_ext[$main::DUPS],
-  $main::st_ext[$main::LINKS], $main::st_ext[$main::PROBL],
-  $main::st_ext[$main::PROBL] / $main::st_ext[$main::LINKS] * 100;
+  if ($main::st_ext[$main::LINKS] > 0) {
+    printf $fh "External: %6d total, %6d unique, %6d problems, ratio = %3d%%\n",
+    $main::st_ext[$main::LINKS] + $main::st_ext[$main::DUPS],
+    $main::st_ext[$main::LINKS], $main::st_ext[$main::PROBL],
+    $main::st_ext[$main::PROBL] / $main::st_ext[$main::LINKS] * 100;
+  }
 
   print $fh "\n\n-- \nCheckbot $main::VERSION\n";
-  print $fh "<URL:http://twi72.twi.tudelft.nl:8000/checkbot/>\n";
+  print $fh "<URL:http://dutifp.twi.tudelft.nl:8000/checkbot/>\n";
 
   $fh->close;
 }
 
 sub print_help {
-  print "Checkbot command line options:\n\n";
-  print "  -d          Debugging mode: No pauses, stop after 25 links.\n";
-  print "  -v          Verbose mode: display many messages about progress.\n";
-  print "  -u url      Start URL\n";
-  print "  -m match    Check pages only if URL matches `match'\n";
-  print "              If no match is given, the start URL is used as a match\n";
-  print "  -x exclude  Exclude pages if the URL matches 'exclude'\n";
-  print "  -z ignore   Do not list error messages for pages that the URL matches 'ignore'\n";
-  print "  -f file     Write results to file, default is checkbot.html\n";
-  print "  -M address  Mail brief synopsis to address when done.\n";
-  print "  -N note     Include Note (typical URL to report) along with Mail message.\n";
-  print "  -s secs     Sleep for secs seconds between requests (default 2)\n";
-  print "  -t timeout  Timeout for http requests in seconds (default 120)\n\n";
-  print "Options -m, -x, and -z can take a perl regular expression as their argument\n\n";
+  print "Checkbot $main::VERSION command line options:\n\n";
+  print "  --debug            Debugging mode: No pauses, stop after 25 links.\n";
+  print "  --verbose          Verbose mode: display many messages about progress.\n";
+  print "  --url url          Start URL\n";
+  print "  --match match      Check pages only if URL matches `match'\n";
+  print "                     If no match is given, the start URL is used as a match\n";
+  print "  --exclude exclude  Exclude pages if the URL matches 'exclude'\n";
+  print "  --ignore ignore    Do not list error messages for pages that the\n";
+  print "                     URL matches 'ignore'\n";
+  print "  --file file        Write results to file, default is checkbot.html\n";
+  print "  --mailto address   Mail brief synopsis to address when done.\n";
+  print "  --note note        Include Note (e.g. URL to report) along with Mail message.\n";
+  print "  --proxy URL        URL of proxy server for external http and ftp requests.\n";
+  print "  --seconds seconds  Sleep for secs seconds between requests (default 2)\n";
+  print "  --timeout timeout  Timeout for http requests in seconds (default 120)\n\n";
+  print "Options --match, --exclude, and --ignore can take a perl regular expression\nas their argument\n\n";
   print "Use 'perldoc checkbot' for more verbose documentation.\n\n";
   print "Checkbot WWW page     : http://dutifp.twi.tudelft.nl:8000/checkbot/\n";
   print "Mail bugs and problems: checkbot-bugs\@twi72.twi.tudelft.nl\n";
     
   exit 0;
+}
+
+sub ip_address {
+  my($host) = @_;
+
+  return $main::ip_cache{$host} if defined $main::ip_cache{$host};
+
+  my($name,$aliases,$adrtype,$length,@addrs) = gethostbyname($host);
+  my($n1,$n2,$n3,$n4) = unpack ('C4',$addrs[0]);
+
+  $main::ip_cache{$host} = "$n1.$n2.$n3.$n4";
 }
 
 sub count_problems {
@@ -835,6 +881,21 @@ sub byproblem {
 
 
 # $Log: checkbot.pl,v $
+# Revision 1.44  1996/12/11 16:16:07  graaff
+# Proxy support, small bugs fixed.
+#
+# Revision 1.43  1996/12/05 12:35:41  graaff
+# Checked URLs indexed with IP address, small changes to layout etc.
+#
+# Revision 1.42  1996/11/04 13:21:07  graaff
+# Fixed several small problems. See ChangeLog.
+#
+# Revision 1.41  1996/10/04 15:15:35  graaff
+# use long option names now
+#
+# Revision 1.40  1996/09/28 08:18:14  graaff
+# updated, see ChangeLog
+#
 # Revision 1.39  1996/09/25 13:25:48  graaff
 # update rev
 #

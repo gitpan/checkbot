@@ -51,3 +51,8 @@
    Checkbot on several areas (concurrently). Uses for state
    information: list of consistent bad host, remembering previous bad
    links and just check those qith a `quick' option.
+
+*  Report all pages to point to a particular broken link. Most of this
+   information is already availabe, but discarded when writing the
+   report pages. Should probably change the internal structure a bit
+   to get this working properly.

@@ -1,5 +1,5 @@
 # This -*- perl -*- script makes the Makefile
-# $Id: Makefile.PL,v 1.1 1996/09/25 12:52:00 graaff Exp $
+# $Id: Makefile.PL,v 1.2 1996/09/28 08:18:12 graaff Exp $
 
 require 5.002;
 use ExtUtils::MakeMaker;
@@ -30,6 +30,10 @@ chk_version('LWP' => '5.02') or
 # FTP should have been checked by LWP, but check anyway
 chk_version('Net::FTP' => '2.00') or
   warn "*** Checkbot requires Net::FTP 2.00 or later to correctly check FTP URLs\n";
+
+# Mail::Send is nice, but not really needed
+chk_version('Mail::Send' => '1.03') or
+  warn "*** Mail::Send not found. You currently can not use the --mailto option\n    of Checkbot\n";
 
 # Write the Makefile
 WriteMakefile(

@@ -1,3 +1,54 @@
+Sun Dec  8 12:55:33 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot.pl (send_mail): --note didn't work; Checkbot would
+	crash when no external links were found.
+
+Wed Dec  4 12:43:14 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot.pl (add_checked): All checked URLs are indexed using
+	  IP-address to avoid checking pages multiple times for multiple
+	  CNAME's.
+
+Mon Nov  4 14:19:30 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot.pl (send_mail): Braino in URL fixed.
+
+Sun Oct 27 20:16:38 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot.pl (init_globals): Don't let --match default to the
+	--url until after we possible change the URL (this happens for
+	file:/ URLs, currently)
+
+Wed Oct 23 14:22:15 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot.pl (check_point): Oops, checking would occur every minute
+
+Mon Oct 21 13:41:48 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot.pl (print_help): Added version number to help info.
+
+Wed Oct 16 21:05:58 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot.pl: Added --proxy option for checking external links
+	through a proxy server
+
+Sat Sep 28 09:26:48 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot.pl (init_globals): Changed /var/tmp to /tmp.
+	(check_point): Slower exponential rate, upper limit of 3 hours
+
+	* Makefile.PL: Added check for Mail::Send
+
+	* README: Added
+
+Thu Sep 26 17:01:36 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot.pl: Switched from short options to long options.
+	I was already running out of meaningful options, so before adding
+	additional stuff I wanted to move to Long options first. You
+	should be able to abbreviate most options to the previous values. 
+	Notable exception is -m, which has become --match.
+
 Wed Sep 25 10:58:06 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
 
 	* checkbot.pl: 
