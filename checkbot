@@ -2,7 +2,7 @@
 #
 # checkbot - A perl5 script to check validity of links in www document trees
 #
-# Hans de Graaff <hans@degraaff.org>, 1994-2002.
+# Hans de Graaff <hans@degraaff.org>, 1994-2004.
 # Based on Dimitri Tischenko, Delft University of Technology, 1994
 # Based on the testlinks script by Roy Fielding
 # With contributions from Bruce Speyer <bruce.speyer@elecomm.com>
@@ -13,7 +13,7 @@
 # Info-URL: http://degraaff.org/checkbot/
 # Comments to: checkbot@degraaff.org
 #
-# $Id: checkbot,v 1.74 2003/12/17 20:12:40 graaff Exp $
+# $Id: checkbot,v 1.75 2004/04/22 19:20:46 graaff Exp $
 # (Log information can be found at the end of the script)
 
 require 5.004;
@@ -29,13 +29,15 @@ Checkbot - WWW Link Verifier
 
 =head1 SYNOPSIS
 
-checkbot [B<--debug>] [B<--help>] [B<--verbose>] [B<--url> start URL]
+checkbot [B<--cookies>] [B<--debug>] [B<--help>] [B<--mailto> email address]
+         [B<--noproxy> list of domains]
+         [B<--verbose>]
+         [B<--url> start URL]
          [B<--match> match string] [B<--exclude> exclude string]
          [B<--proxy> proxy URL] [B<--internal-only>]
          [B<--ignore> ignore string] [B<--file> file name]
          [B<--filter> substitution regular expression]
          [B<--style> style file URL]
-         [B<--mailto> email address]
          [B<--note> note] [B<--sleep> seconds] [B<--timeout> timeout]
          [B<--interval> seconds] [B<--dontwarn> HTTP responde codes]
          [B<--enable-virtual>]
@@ -63,6 +65,43 @@ checked at the same time, even though they are treated differently.
 Options for Checkbot are:
 
 =over 4
+
+=item --cookies
+
+Accept cookies from the server and offer them again at later
+requests. This may be useful for servers to use cookies to handle
+sessions. By default Checkbot does not accept any cookies.
+
+=item --debug
+
+Enable debugging mode. Not really supported anymore, but it will keep
+some files around that otherwise would be deleted.
+
+=item --help
+
+Shows brief help message on the standard output.
+
+=item --mailto <email address>
+
+Send mail to the I<email address> when Checkbot is done checking. You
+can give more than one address separated by comma's. The notification
+email includes a small summary of the results.
+
+=item --noproxy <list of domains>
+
+Do not proxy requests to the given domains. The list of domains must
+be a comma-separated list. For example, so avoid using the proxy for
+the localhost and someserver.xyz, you can use C<--noproxy
+localhost,someserver.xyz>.
+
+=item --verbose
+
+Show verbose output while running. Includes all links checked, results
+from the checks, etc.
+
+
+
+
 
 =item --url <start URL>
 
@@ -131,19 +170,14 @@ with either www.server.com/one or www.server.com/two.
 
 =item --proxy <proxy URL>
 
-This attribute specifies the URL for a proxy server. Only the HTTP and
-FTP protocols will be send to the proxy server.
+This attribute specifies the URL of a proxy server. Only the HTTP and
+FTP requests will be sent to that proxy server.
 
 =item --internal-only
 
 Skip the checking of external links at the end of the Checkbot
 run. Only matching links are checked. Note that some redirections may
 still cause external links to be checked.
-
-=item --mailto <email address>
-
-Send mail to the I<email address> when Checkbot is done
-checking. Includes a small summary of the results.
 
 =item --note <note>
 
@@ -152,20 +186,6 @@ C<--mailto>). This can be useful to include the URL of the summary HTML page
 for easy reference, for instance.
 
 Only meaningful in combination with the C<--mailto> option.
-
-=item --help
-
-Shows brief help message on the standard output.
-
-=item --verbose
-
-Show verbose output while running. Includes all links checked, results
-from the checks, etc.
-
-=item --debug
-
-Enable debugging mode. Not really supported anymore, but it will keep
-some files around that otherwise would be deleted.
 
 =item --sleep <seconds>
 
@@ -223,6 +243,12 @@ problems in many cases anyway. These codes are:
       The URL has a double slash in it. This is legal, but some web
       servers cannot handle it very well and may cause Checkbot to
       run away. See also the comments below.
+
+  904 Unknown scheme in URL
+      The URL starts with a scheme that Checkbot does not know
+      about. This is often caused by mistyping the scheme of the URL,
+      but the scheme can also be a legal one. In that case please let
+      me know so that it can be added to Checkbot.
 
 =item --enable-virtual
 
@@ -307,7 +333,29 @@ server should have indicated that the requested pages do not
 exist. There is no easy way to solve this other than fixing the
 offending web server or the broken links.
 
+=item Problems with https:// links
+
+The error message
+
+  Can't locate object method "new" via package "LWP::Protocol::https::Socket"
+
+usually means that the current installation of LWP does not support
+checking of SSL links (i.e. links starting with https://). This
+problem can be solved by installing the Crypt::SSLeay module.
+
 =back
+
+=head1 EXAMPLES
+
+The most simple use of Checkbot is to check a set of pages on a
+server. To check my checkbot pages I would use:
+
+    checkbot http://degraaff.org/checkbot/
+
+Checkbot runs can take some time so Checkbot can send a notification
+mail when the run is done:
+
+    checkbot --mailto hans@degraaff.org http://degraaff.org/checkbot/
 
 =head1 PREREQUISITES
 
@@ -331,6 +379,7 @@ any
 my %checkbot_errors = ('901' => 'Host name expected but not found',
 		       '902' => 'Unqualified host name in URL',
 		       '903' => 'URL contains double slash in URL',
+		       '904' => 'Unknown scheme in URL',
 		      );
 
 my @starturls = ();
@@ -352,7 +401,7 @@ my %options = ();
 
 # Version information
 my $VERSION;
-( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.74 $ =~ /(\d+)\.(\d+)/);
+( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.75 $ =~ /(\d+)\.(\d+)/);
 
 # If on a Mac we should ask for the arguments through some MacPerl stuff
 if ($^O eq 'MacOS') {
@@ -401,7 +450,7 @@ sub check_options {
 
   # Get command-line arguments
   use Getopt::Long;
-  my $result = GetOptions(qw(debug help verbose url=s match=s exclude|x=s file=s filter=s style=s ignore|z=s mailto|M=s note|N=s proxy=s internal-only sleep=f timeout=i interval=i dontwarn=s enable-virtual language=s allow-simple-hosts suppress=s));
+  my $result = GetOptions(qw(cookies debug help noproxy=s verbose url=s match=s exclude|x=s file=s filter=s style=s ignore|z=s mailto|M=s note|N=s proxy=s internal-only sleep=f timeout=i interval=i dontwarn=s enable-virtual language=s allow-simple-hosts suppress=s));
 
   # Handle arguments, some are mandatory, some have defaults
   &print_help if (($main::opt_help && $main::opt_help)
@@ -449,6 +498,11 @@ sub init_modules {
   # Add a proxy to the user agent, if defined
   $main::ua->proxy(['http', 'ftp'], $main::opt_proxy)
     if defined($main::opt_proxy);
+  $main::ua->no_proxy(split(',', $main::opt_noproxy))
+    if defined $main::opt_noproxy;
+  # Add a cookie jar to the UA if requested by the user
+  $main::ua->cookie_jar( {} )
+    if defined $main::opt_cookies or $main::opt_cookies;
 
   require Mail::Send if defined $main::opt_mailto;
 
@@ -656,7 +710,12 @@ sub handle_url {
   # Perhaps this is a URL we are not interested in checking...
   if (not defined($url->scheme) 
       or $url->scheme !~ /^(https?|file|ftp|gopher|nntp)$/o ) {
-    output "Ignore $url", 1;
+    # Ignore URLs which we know we can ignore, create error for others
+    if ($url->scheme =~ /^(news|mailto)$/o) {
+      output "Ignore $url", 1;
+    } else {
+      add_error($urlstr, $urlparent, 904, "Unknown scheme in URL: " . $url->scheme);
+    }
     return;
   }
 
@@ -754,7 +813,7 @@ sub performRequest {
     next if $try eq 'HEAD' and
       ($reqtype eq 'GET'
        or $url->scheme eq 'gopher'
-       or $main::servers_get_only{$url->authority});
+       or (defined $url->authority and $main::servers_get_only{$url->authority}));
 
     # Output what we are going to do with this link
     output(sprintf("%4s %s (%s)\n", $try, $url, $type), 1);
@@ -1275,33 +1334,39 @@ sub send_mail {
 }
 
 sub print_help {
-  print "Checkbot $VERSION command line options:\n\n";
-  print "  --debug            Debugging mode: No pauses, stop after 25 links.\n";
-  print "  --verbose          Verbose mode: display many messages about progress.\n";
-  print "  --url url          Start URL\n";
-  print "  --match match      Check pages only if URL matches `match'\n";
-  print "                     If no match is given, the start URL is used as a match\n";
-  print "  --exclude exclude  Exclude pages if the URL matches 'exclude'\n";
-  print "  --filter regexp    Run regexp on each URL found\n";
-  print "  --ignore ignore    Ignore URLs matching 'ignore'\n";
-  print "  --suppress file    Use contents of 'file' to suppress errors in output\n";
-  print "  --file file        Write results to file, default is checkbot.html\n";
-  print "  --mailto address   Mail brief synopsis to address when done.\n";
-  print "  --note note        Include Note (e.g. URL to report) along with Mail message.\n";
-  print "  --proxy URL        URL of proxy server HTTP and FTP requests.\n";
-  print "  --internal-only    Only check internal links, skip checking external links.\n";
-  print "  --sleep seconds    Sleep this many seconds between requests (default 0)\n";
-  print "  --style url        Reference the style sheet at this URL.\n";
-  print "  --timeout seconds  Timeout for http requests in seconds (default 120)\n";
-  print "  --interval seconds Maximum time interval between updates (default 10800)\n";
-  print "  --dontwarn codes   Do not write warnings for these HTTP response codes\n";
-  print "  --enable-virtual   Use only virtual names, not IP numbers for servers\n";
-  print "  --language         Specify 2-letter language code for language negotiation\n";
-  print "\n";
-  print "Options --match, --exclude, and --ignore can take a perl regular expression\nas their argument\n\n";
-  print "Use 'perldoc checkbot' for more verbose documentation.\n\n";
-  print "Checkbot WWW page     : http://degraaff.org/checkbot/\n";
-  print "Mail bugs and problems: checkbot\@degraaff.org\n";
+  print <<"__EOT__";
+Checkbot $VERSION command line options:
+
+  --cookies          Accept cookies from the server
+  --debug            Debugging mode: No pauses, stop after 25 links.
+  --mailto address   Mail brief synopsis to address when done.
+  --noproxy domains  Do not proxy requests to given domains.
+  --verbose          Verbose mode: display many messages about progress.
+  --url url          Start URL
+  --match match      Check pages only if URL matches `match'
+                     If no match is given, the start URL is used as a match
+  --exclude exclude  Exclude pages if the URL matches 'exclude'
+  --filter regexp    Run regexp on each URL found
+  --ignore ignore    Ignore URLs matching 'ignore'
+  --suppress file    Use contents of 'file' to suppress errors in output
+  --file file        Write results to file, default is checkbot.html
+  --note note        Include Note (e.g. URL to report) along with Mail message.
+  --proxy URL        URL of proxy server for HTTP and FTP requests.
+  --internal-only    Only check internal links, skip checking external links.
+  --sleep seconds    Sleep this many seconds between requests (default 0)
+  --style url        Reference the style sheet at this URL.
+  --timeout seconds  Timeout for http requests in seconds (default 120)
+  --interval seconds Maximum time interval between updates (default 10800)
+  --dontwarn codes   Do not write warnings for these HTTP response codes
+  --enable-virtual   Use only virtual names, not IP numbers for servers
+  --language         Specify 2-letter language code for language negotiation
+
+Options --match, --exclude, and --ignore can take a perl regular expression
+as their argument\n
+Use 'perldoc checkbot' for more verbose documentation.
+Checkbot WWW page     : http://degraaff.org/checkbot/
+Mail bugs and problems: checkbot\@degraaff.org
+__EOT__
 
   exit 0;
 }
@@ -1338,6 +1403,9 @@ sub count_problems {
 
 
 # $Log: checkbot,v $
+# Revision 1.75  2004/04/22 19:20:46  graaff
+# Version 1.75
+#
 # Revision 1.74  2003/12/17 20:12:40  graaff
 #  * New --suppress option allows Response code/URL combinations not to
 #    be reported as problems.

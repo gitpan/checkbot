@@ -13,10 +13,8 @@ servers.
 Checkbot was written originally to check a number of servers at
 once. This has implied some design decisions, so you might want to
 keep that in mind when making suggestions. Speaking of which, be sure
-to check the TODO file for things which have been suggested for
-Checkbot.
-
-Changes between version can be found in the ChangeLog file.
+to check the to do file on the website for things which have been
+suggested for Checkbot.
 
 Making and installing Checkbot is easy:
 
@@ -28,7 +26,10 @@ You will need to have the following Perl modules installed in order to
 properly install Checkbot:
 
     LWP
-    Net::FTP (contained in the libnet package)
+    URI
+    HTML::Parser
+    MIME::Base64
+    Net::FTP
     Mail::Send (optional, contained in the MailTools package)
 
 Problems, etc. can be reported to checkbot@degraaff.org
@@ -42,3 +43,65 @@ always online. It may take up to a day for the confirmation request to
 reach you.
 
 Hans de Graaff <hans@degraaff.org>
+
+
+Changes in version 1.74 (17-Dec-2003)
+
+    * New --suppress option allows Response code/URL combinations not
+      to be reported as problems.
+    * Checkbot warnings are now handled as pseudo-HTTP status messages
+      so that they can make use of all Checkbot features such as
+      --dontwarn.
+    * Option --allow-simple-hosts is deprecated due to this change.
+    * More robust handling of (lack of) status messages.
+    * Checkbot now requires LWP 5.70 due to bugfixes in this release,
+      although it should still also work with older LWP versions.
+    * Documentation fixes.
+
+Changes in version 1.73 (31-Aug-2003)
+
+    * Checkbot now tries to produce valid XHTML 1.1
+    * URLs matching the --ignore option are now completely ignored;
+      they used to be checked but not reported.
+    * Proxy support works again, but --proxy now applies to all links
+    * Documentation fixes
+
+Changes in version 1.72 (04-May-2003)
+
+    * URLs with query strings are now checked by default, the
+      --exclude option can be used to revert to the previous behavior
+    * The server results page contains shortcut links to each section
+    * Removed warning for unqualified hostnames for news: URLs
+    * Handling of signals such as SIGINT
+    * Bug and documentation fixes
+
+Changes in version 1.71 (29-Dec-2002)
+
+    * New --filter option allows rewriting of URLs before they will be checked
+    * Problematic links are now reported for each page on which they occur
+    * New statistics which should work correctly
+    * Much simplified storage of information on problem links
+    * Duplicate links are now properly detected and not checked twice
+    * Rewritten internals for link checking, as a consequence internal
+      and external links are checked at the same time now, not in two
+      passes like before
+    * Rewritten internals for message output
+    * A simple test case for 'make test'
+    * Minor cleanups of the code
+
+Version 1.70 was only released for testing purposes
+Changes in version 1.69
+
+    * Improved makefile and packaging
+    * Better default for --match argument
+    * Additional instance of using GET instead of HEAD added
+    * Bug fixes in printing of web server feedback
+
+Changes in version 1.68
+
+    * Add --allow-simple-hosts which doesn't check for unqualified hosts
+    * Mention --style option in help and added example style file
+    * Change --sleep implementation so that fractional seconds can be used
+    * Fix a bug with handling <base> tags
+    * Tighten checks for http and https schemes
+    * Remove harmless warnings

@@ -1,6 +1,6 @@
 # This -*- perl -*- script makes the Makefile
 # Based on the Makefile.PL in the libwww-perl distribution
-# $Id: Makefile.PL,v 1.10 2003/12/17 20:05:37 graaff Exp $
+# $Id: Makefile.PL,v 1.11 2004/04/22 19:20:29 graaff Exp $
 
 require 5.005;
 use strict;
@@ -12,15 +12,14 @@ my $missing_modules = 0;
 print "\nChecking for LWP...........";
 eval {
     require LWP;
-    LWP->VERSION(5.70);
+    LWP->VERSION(5.76);
 };
 if ($@) {
     print " failed\n";
     $missing_modules++;
     print <<EOT;
 $@
-The URI module must be installed.  WWW without URIs would not
-be that great :-)
+Checkbot depends on LWP (libwww-perl) for almost all actions.
 
 EOT
     sleep(2);  # Don't hurry too much
