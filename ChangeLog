@@ -1,4 +1,61 @@
-2000-01-30  Hans de Graaff  <Hans de Graaff <graaff@xs4all.nl>>
+2000-06-29  Hans de Graaff  <hans@degraaff.org>
+
+	* Checkbot 1.61 released
+
+	* Makefile.PL (chk_version): Add version checked for in output.
+
+2000-06-18  Larry Gilbert <larry@n2h2.com>
+
+	* checkbot.pl (check_external): Use GET instead of HEAD for
+	confused closed-source servers.
+
+2000-06-18  Hans de Graaff  <hans@degraaff.org>
+
+	* Makefile.PL (chk_version): require URI 1.07 as it contains bug
+	fixes for using Base URLs.
+
+	* checkbot.pl: Change email and web address
+
+2000-04-30  Hans de Graaff <graaff@xs4all.nl>
+
+	* Checkbot 1.60 released
+
+	* checkbot.pl (check_options): Add option --dontwarn to exclude
+	certain types of warnings. Based on idea by David Hoekman.
+
+2000-04-29  Mark Roedel <roedelm@letu.edu>
+
+	* checkbot.pl (handle_url): Deal with "300 Multiple Choices"
+	response which does not offer a URL to redirect to.
+
+2000-04-09  David Hoekman <dhoekman@halcyon.com>
+
+	* checkbot.pl (init_globals): Allow for TMPDIR with or without
+	trailing /
+
+2000-04-08  Hans de Graaff  <Hans de Graaff <graaff@xs4all.nl>>
+
+	* checkbot.pl: Updated contact information in file header.
+
+2000-03-26  Hans de Graaff  <graaff@xs4all.nl>
+
+	* checkbot.pl (check_options): Add message about skipping of
+	external links. Also removes warning about single use of variable.
+
+2000-03-06  Brian McNett <webmaster@mycoinfo.com>
+
+	* checkbot.pl: On a Mac, ask command line options
+	through MacPerl mechanism.
+
+2000-02-06  Hans de Graaff  <graaff@xs4all.nl>
+
+	* checkbot.pl (init_globals): Check wether URLs on the command
+	line have a proper host. Thanks to Charles Williams for the
+	report.
+
+2000-01-30  Hans de Graaff  <graaff@xs4all.nl>
+
+	* Checkbot 1.59 released
 
 	* checkbot.pl (handle_doc): Use eof instead of parse(undef) to end
 	parsing.

@@ -36,9 +36,6 @@
    external queue first, and then run through it to actually check the
    links. 
 
-*  Add an option to indicate which error codes can be ignored by
-   Checkbot's reports.
-
 *  Keep an internal list of hosts to which we cannot connect, so that
    we avoid being stalled a while for each link to that host.
 
@@ -53,7 +50,10 @@
    serves that create recursive symlinks by accident.
 
 *  Sort problems on the server page in a different order
-   (e.g. critical errors first).
+   (e.g. critical errors first). 
+
+*  Sort the problem reports by page instead of by type of problem for
+   easier fixing.
 
 *  Improve the reporting pages to be more clear about what is going
    on, etc.
@@ -66,8 +66,13 @@
    indicate these are actually the same:
    www1.domain=www2.domain=www3.domain. 
 
-*  Retry pages that generate mysterious 500-series errors or 501 Not
-   Implemented errors with a GET command.
-
 *  Get Checkbot listed as a module, so that it can be installed with
    CPAN?
+
+*  List all options on the generated page, not just the URLs and the
+   match option?
+
+*  Perhaps use HTML::Summary to provide summaries of the documents
+   with errors?
+
+*  Proxy is a bit of a mess, I should look in to this and clean it up.

@@ -21,17 +21,18 @@ print OUT <<'!NO!SUBS!';
 #
 # checkbot - A perl5 script to check validity of links in www document trees
 #
-# Hans de Graaff <j.j.degraaff@acm.org>, 1994-1998.
+# Hans de Graaff <hans@degraaff.org>, 1994-2000.
 # Based on Dimitri Tischenko, Delft University of Technology, 1994
 # Based on the testlinks script by Roy Fielding
 # With contributions from Bruce Speyer <bruce.speyer@elecomm.com>
 #
-# Info-URL: http://www.xs4all.nl/~graaff/checkbot/
+# Info-URL: http://degraaff.org/checkbot/
+# Comments to: checkbot@degraaff.org
 #
-# $Id: checkbot.pl,v 1.59 2000/01/30 20:23:32 graaff Exp $
+# $Id: checkbot.pl,v 1.61 2000/06/29 19:56:48 graaff Exp $
 # (Log information can be found at the end of the script)
 
-require 5.001;
+require 5.004;
 use strict;
 
 require LWP;
@@ -48,7 +49,7 @@ checkbot [B<--debug>] [B<--help>] [B<--verbose>] [B<--url> start URL]
          [B<--ignore> ignore string] [B<-file> file name] 
          [B<--mailto> email address]
          [B<--note> note] [B<--sleep> seconds] [B<--timeout> timeout]
-         [B<--interval> seconds]
+         [B<--interval> seconds] [B<--dontwarn> HTTP responde codes]
          [start URLs]
 
 =head1 DESCRIPTION
@@ -154,6 +155,12 @@ gradually extend it towards the maximum interval.
 
 Write the summary pages into file I<file name>. Default is C<checkbot.html>.
 
+=item --dontwarn <HTTP response codes regular expression>
+
+Don't include warnings on the result pages for those HTTP response
+codes which match the regular expression. For instance, --dontwarn
+"(301|404)" would not include 301 and 404 response codes.
+
 =back
 
 =head1 PREREQUISITES
@@ -166,7 +173,7 @@ This script can send mail when C<Mail::Send> is present.
 
 =head1 AUTHOR
 
-Hans de Graaff <graaff@xs4all.nl>
+Hans de Graaff <hans@degraaff.org>
 
 =pod OSNAMES 
 
@@ -189,7 +196,13 @@ my %problems = ();
 
 # Version information
 my $VERSION;
-( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.59 $ =~ /(\d+)\.(\d+)/);
+( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.61 $ =~ /(\d+)\.(\d+)/);
+
+# If on a Mac we should ask for the arguments through some MacPerl stuff
+if ($^O eq 'MacOS') {
+  $main::mac_answer = eval "MacPerl::Ask('Enter Command-Line Options')";
+  push(@ARGV, split(' ', $main::mac_answer));
+}
 
 &check_options();
 &init_modules();
@@ -223,7 +236,7 @@ sub check_options {
 
   # Get command-line arguments
   use Getopt::Long;
-  my $result = GetOptions(qw(debug help verbose url=s match=s exclude|x=s file=s ignore|z=s mailto|M=s note|N=s proxy=s internal-only sleep=i timeout=i interval=i));
+  my $result = GetOptions(qw(debug help verbose url=s match=s exclude|x=s file=s ignore|z=s mailto|M=s note|N=s proxy=s internal-only sleep=i timeout=i interval=i dontwarn=s));
 
   # Handle arguments, some are mandatory, some have defaults
   &print_help if (($main::opt_help && $main::opt_help) 
@@ -232,12 +245,15 @@ sub check_options {
   $main::opt_verbose = 0 unless $main::opt_verbose;
   $main::opt_sleep = 2 unless defined($main::opt_sleep) && length($main::opt_sleep);
   $main::opt_interval = 10800 unless defined $main::opt_interval and length $main::opt_interval;
+  $main::opt_dontwarn = "xxx" unless defined $main::opt_dontwarn and length $main::opt_dontwarn;
   # The default for opt_match will be set later, because we might want
   # to muck with opt_url first.
 
   # Display messages about the options
   print STDERR "*** Starting Checkbot $VERSION in verbose mode\n" 
     if $main::opt_verbose;
+  print STDERR "    Will skip checking of external links\n"
+    if $main::opt_internal_only;
 }
 
 sub init_modules {
@@ -276,7 +292,7 @@ sub init_globals {
     $main::file = "checkbot.html";
     $main::server_prefix = "checkbot";
   }
-  $main::tmpdir = ($ENV{'TMPDIR'} or "/tmp/") . "Checkbot.$$";
+  $main::tmpdir = ($ENV{'TMPDIR'} or "/tmp") . "/Checkbot.$$";
 
   $main::cur_queue  = $main::tmpdir . "/queue";
   $main::new_queue  = $main::tmpdir . "/queue-new";
@@ -285,6 +301,7 @@ sub init_globals {
   # Set up hashes to be used
   %main::checked = ();
   %main::servers = ();
+  %main::servers_get_only = ();
 
   # Initialize the start URLs. --url takes precedence. Otherwise
   # just process URLs in order as they appear on the command line.
@@ -297,6 +314,10 @@ sub init_globals {
     $url->host('localhost') if $url->scheme eq 'file';
     if (!defined $main::opt_match) {
       $main::opt_match = quotemeta $url;
+    }
+    if (!defined $url->host) {
+      warn "No host specified in URL $url, ignoring it.\n";
+      next;
     }
     push(@starturls, $url);
   }
@@ -458,16 +479,20 @@ sub handle_url {
       } else {
 	print STDERR "         ", $response->code, ' ', $response->message, "\n" 
 	  if $main::opt_verbose;
-        push @{$problems{$response->code}{$url}}, $response;
+        push @{$problems{$response->code}{$url}}, $response unless $response->code =~ /$main::opt_dontwarn/o;
 	$main::st_int[$main::PROBL]++;
       }
 
       if ($response->is_redirect) {
-	my $baseURI = URI->new($url);
-	my $redir_url = URI->new_abs($response->header('Location'), $baseURI);
-	print STDERR "         Redirected to " . $redir_url . "\n" if $main::opt_verbose;
-
-	add_to_queue($redir_url, $urlparent);
+	if ($response->code == 300) {  # multiple choices, but no redirection available
+	  print STDERR "        Multiple choices.\n" if $main::opt_verbose;
+	} else {
+	  my $baseURI = URI->new($url);
+	  my $redir_url = URI->new_abs($response->header('Location'), $baseURI);
+	  print STDERR "         Redirected to " . $redir_url . "\n" if $main::opt_verbose;
+	  
+	  add_to_queue($redir_url, $urlparent);
+	}
       }
     }
 
@@ -545,13 +570,63 @@ sub check_external {
       # finding the file. -- Patch by Bruce Speyer
       # <bspeyer@texas-one.org>
 
-      $reqtype = ($url->scheme =~ /^gopher$/o) ? 'GET' : 'HEAD';
+      # We also need to do GET instead of HEAD if we know the remote server
+      # won't accept it.  The standard way for an HTTP server to indicate
+      # this is by returning a 405 ("Method Not Allowed") or 501 ("Not
+      # Implemented").  Other circumstances may also require sending GETs
+      # instead of HEADs to a server.  Details are documented below.
+      # -- Larry Gilbert <larry@n2h2.com>
 
-      print STDERR "     $reqtype ", $url->abs, "\n" if $main::opt_verbose;
-      my $ref_header = new HTTP::Headers 'Referer' => $urlparent;
-      my $request = new HTTP::Request($reqtype, $url, $ref_header);
-      my $response = $main::ua->simple_request($request);
-      
+      my ($reqtype, $ref_header, $request, $response);
+
+      foreach $reqtype ('HEAD', 'GET') {
+        # Under normal circumstances, we will go through this loop only once
+        # and thus make a single HEAD request.
+
+        # If we already know a HEAD won't work, skip it and do GET
+        next if $reqtype eq 'HEAD' && ($url->scheme =~ /^gopher$/o ||
+         $main::servers_get_only{$url->netloc} );
+
+        print STDERR "     $reqtype ", $url->abs, "\n" if $main::opt_verbose;
+        $ref_header = new HTTP::Headers 'Referer' => $urlparent;
+        $request = new HTTP::Request($reqtype, $url, $ref_header);
+        $response = $main::ua->simple_request($request);
+
+        if ($reqtype eq 'HEAD') {
+
+          # 405 and 501 are standard indications that HEAD shouldn't be used
+          if ($response->code =~ /^(405|501)$/o) {
+            print STDERR "Server doesn't like HEAD requests; retrying\n"
+             if $main::opt_verbose;
+            $main::servers_get_only{$url->netloc}++;
+            next;
+          }
+
+          # Microsoft IIS has been seen dropping the connection prematurely
+          # when it should be returning 405 instead
+          elsif ($response->status_line =~ /^500 unexpected EOF/o) {
+            print STDERR "Server hung up on HEAD request; retrying\n"
+             if $main::opt_verbose;
+            $main::servers_get_only{$url->netloc}++;
+            next;
+          }
+
+          # Netscape Enterprise has been seen returning 500 and even 404
+          # (yes, 404!!) in response to HEAD requests
+          elsif ($response->server =~ /^Netscape-Enterprise/o &&
+           $response->code =~ /^(404|500)$/o) {
+            print STDERR "Unreliable response to HEAD request; retrying\n"
+             if $main::opt_verbose;
+            $main::servers_get_only{$url->netloc}++;
+            next;
+          }
+
+          # If a HEAD request resulted in nothing noteworthy, no need for
+          # any further attempts
+          else { last; }
+        }
+      }
+
       if ($response->is_error || $response->is_redirect) {
 	if (defined $main::opt_ignore && $url =~ /$main::opt_ignore/o) {
 	  print STDERR "Ignore  $url error\n";
@@ -559,7 +634,7 @@ sub check_external {
 	  printf STDERR "          %d (%s)\n", $response->code, 
 	  $response->message
 	    if $main::opt_verbose;
-          push @{$problems{$response->code}{$url}}, $response;
+          push @{$problems{$response->code}{$url}}, $response unless $response->code =~ /$main::opt_dontwarn/o;
 	  $main::st_ext[$main::PROBL]++;
 	}
       }
@@ -716,7 +791,7 @@ sub add_checked {
   # class should deal with stuff like this. Checkbot can't be expected
   # to know which URI schemes do have a host component and which types
   # don't.
-  $url->host(ip_address($url->host)) if $url->scheme =~ '^(http|ftp|gopher|https|ldap|news|nntp|pop|rlogin|snews|telnet)$';
+  $url->host(ip_address($url->host)) if $url->scheme =~ /^(http|ftp|gopher|https|ldap|news|nntp|pop|rlogin|snews|telnet)$/;
   $urlstr = $url->as_string;
 
   if (defined $main::checked{$urlstr}) {
@@ -734,6 +809,11 @@ sub add_checked {
 sub handle_doc {
   my ($response) = @_;
   my ($doc_new, $doc_dup, $doc_ext) = (0, 0, 0);
+
+  # TODO: we are making an assumption here that the $reponse->base is
+  # valid, which might not always be true! This needs to be fixed, but
+  # first let's try to find out why this stuff is sometimes not
+  # valid...
 
   # When we received the document we can add a notch to its server
   $main::servers{$response->base->netloc}++;
@@ -855,7 +935,7 @@ sub print_server {
 
 # Return a string containing Checkbot's signature for HTML pages
 sub signature {
-  return "<hr>\nPage created by <a href=\"http://www.xs4all.nl/~graaff/checkbot/\">Checkbot $VERSION</a> on <em>" . localtime() . "</em>.\n</body></html>";
+  return "<hr>\nPage created by <a href=\"http://degraaff.org/checkbot/\">Checkbot $VERSION</a> on <em>" . localtime() . "</em>.\n</body></html>";
 }
 
 # Loop through all possible problems, select relevant ones for this server
@@ -967,7 +1047,7 @@ sub send_mail {
   }
 
   print $fh "\n\n-- \nCheckbot $VERSION\n";
-  print $fh "<URL:http://www.xs4all.nl/~graaff/checkbot/>\n";
+  print $fh "<URL:http://degraaff.org/checkbot/>\n";
 
   $fh->close;
 }
@@ -989,11 +1069,13 @@ sub print_help {
   print "  --internal-only    Only check internal links, skip checking external links.\n";
   print "  --sleep seconds    Sleep for secs seconds between requests (default 2)\n";
   print "  --timeout seconds  Timeout for http requests in seconds (default 120)\n";
-  print "  --interval seconds Maximum time interval between updates (default 10800)\n\n";
+  print "  --interval seconds Maximum time interval between updates (default 10800)\n";
+  print "  --dontwarn codes   Do not write warnings for these HTTP response codes\n";
+  print "\n";
   print "Options --match, --exclude, and --ignore can take a perl regular expression\nas their argument\n\n";
   print "Use 'perldoc checkbot' for more verbose documentation.\n\n";
-  print "Checkbot WWW page     : http://www.xs4all.nl/~graaff/checkbot/\n";
-  print "Mail bugs and problems: checkbot\@graaff.xs4all.nl\n";
+  print "Checkbot WWW page     : http://degraaff.org/checkbot/\n";
+  print "Mail bugs and problems: checkbot\@degraaff.org\n";
     
   exit 0;
 }
@@ -1033,6 +1115,18 @@ sub count_problems {
 
 
 # $Log: checkbot.pl,v $
+# Revision 1.61  2000/06/29 19:56:48  graaff
+# Updated Makefile.PL
+# Use GET instead of HEAD for confused servers.
+# Update email and web address.
+#
+# Revision 1.60  2000/04/30 13:34:32  graaff
+# Add option --dontwarn to avoid listing certain HTTP responses. Deal
+# with 300 Multiple Choices HTTP Response. Fix warning with
+# --internal-only option and add message when used. Use MacPerl stuff to
+# get command line options on a Mac. Check whether URLs on command line
+# have a proper host.
+#
 # Revision 1.59  2000/01/30 20:23:32  graaff
 # --internal-only option, hide some warnings when not running verbose,
 # and fixed a warning.
