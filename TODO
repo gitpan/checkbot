@@ -60,7 +60,8 @@
 
 *  Add an option to count hops instead of using match, and only hop
    that many links away? Suggested for single page checking, but might
-   be useful on a larger scale as well?
+   be useful on a larger scale as well? Yes, for instance against
+   serves that create recursive symlinks by accident.
 
 *  Sort problems on the server page in a different order
    (e.g. critical errors first).

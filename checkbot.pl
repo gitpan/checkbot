@@ -25,16 +25,15 @@ print OUT <<'!NO!SUBS!';
 # Based on the testlinks script by Roy Fielding
 # With contributions from Bruce Speyer <bruce.speyer@elecomm.com>
 #
-# Info-URL: http://dutifp.twi.tudelft.nl:8000/checkbot/
+# Info-URL: http://www.xs4all.nl/~graaff/checkbot/
 #
-# $Id: checkbot.pl,v 1.50 1997/04/28 07:10:26 graaff Exp $
+# $Id: checkbot.pl,v 1.51 1997/09/06 14:01:58 graaff Exp $
 # (Log information can be found at the end of the script)
 
 require 5.001;
 use strict;
 
 require LWP;
-LWP->require_version(5.02);
 
 =head1 NAME
 
@@ -65,6 +64,8 @@ Checkbot's options are:
 Set the start URL. Checkbot starts checking at this URL, and then
 recursively checks all links found on this page. The start URL takes
 precedence over additional URLs specified on the command line.
+
+If no scheme is protocol for the URL, the file protocol is assumed.
 
 =item --match <match string>
 
@@ -154,7 +155,7 @@ Write the summary pages into file I<file name>. Default is C<checkbot.html>.
 
 =head1 AUTHOR
 
-Hans de Graaff <J.J.deGraaff@twi.tudelft.nl>
+Hans de Graaff <graaff@xs4all.nl>
 
 =cut
 
@@ -168,7 +169,7 @@ my @starturls = ();
 
 # Version information
 my $VERSION;
-( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.50 $ =~ /(\d+)\.(\d+)/);
+( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.51 $ =~ /(\d+)\.(\d+)/);
 
 &check_options();
 &init_modules();
@@ -263,15 +264,14 @@ sub init_globals {
   unshift(@ARGV, $main::opt_url) if $main::opt_url;
   foreach (@ARGV) {
     $url = new URI::URL $_;
-    if (! defined $url->scheme) {
-      warn "Start URL $url lacks a scheme and is ignored\n";
-    } else {
-      $url->host('localhost') if $url->scheme eq 'file';
-      if (!defined $main::opt_match) {
-        $main::opt_match = quotemeta $url;
-      }
-      push(@starturls, $url);
+    # If no scheme is defined we will assume file is used, so that
+    # it becomes easy to check a single file.
+    $url->scheme('file') unless defined $url->scheme;
+    $url->host('localhost') if $url->scheme eq 'file';
+    if (!defined $main::opt_match) {
+      $main::opt_match = quotemeta $url;
     }
+    push(@starturls, $url);
   }
   die "There are no valid starting URLs to begin checking with!\n"
     if scalar(@starturls) == -1;
@@ -333,7 +333,7 @@ sub check_internal {
   # As long as there are links to do, check them
   while ( $main::st_int[$main::TODO] > 0 ) {
     # Read a line from the queue, and process it
-    while ($line = <CURRENT>) {
+    while (defined ($line = <CURRENT>) ) {
       chomp($line);
       &handle_url($line);
       &check_point();
@@ -561,12 +561,14 @@ sub create_page {
     print OUT "<th>Unique</br>links</th> <th>Problem<br>links</th> ";
     print OUT "<th>Ratio</th> </tr>\n";
 
+    if ($main::st_int[$main::LINKS]) {
     print OUT "<tr> <th>Internal</th>";
     printf OUT "<td align=right>%d</td> <td align=right>%d</td> <td align=right>%d</td> <td align=right>%d</td> <td align=right>%d%%</td> </tr>\n",
     $main::st_int[$main::LINKS] + $main::st_int[$main::DUPS],
     $main::st_int[$main::TODO],
     $main::st_int[$main::LINKS], $main::st_int[$main::PROBL],
     $main::st_int[$main::PROBL] / $main::st_int[$main::LINKS] * 100;
+    }
 
   if ($main::st_ext[$main::LINKS]) {
     print OUT "<tr> <th>External</th>";
@@ -762,7 +764,7 @@ sub print_server {
 
 # Return a string containing Checkbot's signature for HTML pages
 sub signature {
-  return "<hr>\nPage created by <a href=http://dutifp.twi.tudelft.nl:8000/checkbot/>Checkbot $VERSION</a> on <em>" . localtime() . "</em>.\n";
+  return "<hr>\nPage created by <a href=http://www.xs4all.nl/~graaff/checkbot/>Checkbot $VERSION</a> on <em>" . localtime() . "</em>.\n";
 }
 
 sub print_server_problems {
@@ -835,7 +837,7 @@ sub send_mail {
   }
 
   print $fh "\n\n-- \nCheckbot $VERSION\n";
-  print $fh "<URL:http://dutifp.twi.tudelft.nl:8000/checkbot/>\n";
+  print $fh "<URL:http://www.xs4all.nl/~graaff/checkbot/>\n";
 
   $fh->close;
 }
@@ -858,8 +860,8 @@ sub print_help {
   print "  --timeout timeout  Timeout for http requests in seconds (default 120)\n\n";
   print "Options --match, --exclude, and --ignore can take a perl regular expression\nas their argument\n\n";
   print "Use 'perldoc checkbot' for more verbose documentation.\n\n";
-  print "Checkbot WWW page     : http://dutifp.twi.tudelft.nl:8000/checkbot/\n";
-  print "Mail bugs and problems: checkbot-bugs\@twi72.twi.tudelft.nl\n";
+  print "Checkbot WWW page     : http://www.xs4all.nl/~graaff/checkbot/\n";
+  print "Mail bugs and problems: checkbot\@graaff.xs4all.nl\n";
     
   exit 0;
 }
@@ -913,6 +915,9 @@ sub byproblem {
 
 
 # $Log: checkbot.pl,v $
+# Revision 1.51  1997/09/06 14:01:58  graaff
+# per 5.004 changes and address changes
+#
 # Revision 1.50  1997/04/28 07:10:26  graaff
 # Fixed small problem with VERSION
 #

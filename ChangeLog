@@ -1,4 +1,19 @@
-Mon Apr 28 09:08:29 1997  Hans de Graaff  <J.J.deGraaff@acm.org>
+Sat Sep  6 16:00:12 1997  Hans de Graaff  <Hans de Graaff <graaff@xs4all.nl>>
+
+	* checkbot 1.51 released
+
+Sat Aug 30 18:05:39 1997  Hans de Graaff  <graaff@xs4all.nl>
+
+	* checkbot.pl (init_globals): assume file: scheme when no scheme
+	is present.
+
+	* checkbot.pl: Small portability stuff for perl 5.004 and LWP 5.11.
+
+Sun Aug 17 08:56:38 1997  Hans de Graaff  <graaff@xs4all.nl>
+
+	* README: Changed email addresses to point to new ISP.
+
+Mon Apr 28 09:08:29 1997  Hans de Graaff  <graaff@xs4all.nl>
 
 	* checkbot.pl: Parsing VERSION is somewhat tricky. Fixed.
 

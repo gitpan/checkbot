@@ -24,6 +24,6 @@ Making and installing Checkbot is simle:
     make
     make install
 
-Problems, etc. can be reported to checkbot-bugs@twi72.twi.tudelft.nl
+Problems, etc. can be reported to checkbot@graaff.xs4all.nl
 
-Hans de Graaff <J.J.deGraaff@twi.tudelft.nl>
+Hans de Graaff <graaff@xs4all.nl>
