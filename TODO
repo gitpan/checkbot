@@ -13,11 +13,14 @@
    references, so that a local server can be checked without going
    through the WWW server.
 
-*  Make use of some sort of state, so that subsequent runs can choose
-   to just check the broken links again.
+*  Keep state between runs, but make sure we still are able to run
+   Checkbot on several areas (concurrently). Uses for state
+   information: list of consistent bad host, remembering previous bad
+   links and just check those with a `quick' option, report on hosts
+   which keep timing out.
 
 *  Retry time-out problem links after checking all other links to
-   better deal with transient problems.
+   better deal with transient problems. See above as well.
 
 *  Add problem links such as the 500's series together.
 
@@ -25,7 +28,7 @@
 
 *  Maybe use a Netscape feature to open problem links in a new
    browser, so that the problem links page remains visible and
-   available. 
+   available. Frames? (*shudder*)
 
 *  Include (or link to) a page which contains explanations for the
    different error messages. (But watch out for server-specific
@@ -38,21 +41,19 @@
 *  Add an option to indicate which error codes can be ignored by
    Checkbot's reports.
 
-*  Maybe Checkbot should check the contents of pages as well? Note
-   problems in HTML, suggest sizes for GIFs, etc.?
-
 *  Keep an internal list of hosts to which we cannot connect, so that
    we avoid being stalled a while for each link to that host.
-
-*  Use FQDNs internally to avoid scanning a site twice, once with a
-   CNAME and once with its A name.
-
-*  Keep state between runs, but make sure we still are able to run
-   Checkbot on several areas (concurrently). Uses for state
-   information: list of consistent bad host, remembering previous bad
-   links and just check those qith a `quick' option.
 
 *  Report all pages to point to a particular broken link. Most of this
    information is already availabe, but discarded when writing the
    report pages. Should probably change the internal structure a bit
    to get this working properly.
+
+*  Rewrite report generation. Currently the whole error list each
+   parsed for each host for which we write a file. This can become
+   very time-consuming!
+
+*  The exclude option is somewhat confusing, in that the links
+   matching this option will still be checked (the links on these pages
+   will really be excluded). Maybe add a new option to really ignore
+   options? Or just redo current options.

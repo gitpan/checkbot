@@ -1,3 +1,21 @@
+Mon Dec 30 12:03:14 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot.pl (handle_url): If a URL is exclude'd, only use HEAD
+	on it, not GET.
+	Starting URLs can now be entered on the command line in addition
+	to the --url option. --url takes precedence. --match is
+	initialized with first URL if not given as separate option.
+
+Mon Dec 23 20:21:32 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot.pl (print_server_problems): Each error message was
+	evaluated as a regexp, potentially crashing checkbot on a bad
+	regexp (e.g. including the string '++').
+
+Mon Dec 23 15:15:05 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot.pl (ip_address): Deal with IP-address not found.
+
 Sun Dec  8 12:55:33 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
 
 	* checkbot.pl (send_mail): --note didn't work; Checkbot would

@@ -27,7 +27,7 @@ print OUT <<'!NO!SUBS!';
 #
 # Info-URL: http://dutifp.twi.tudelft.nl:8000/checkbot/
 #
-# $Id: checkbot.pl,v 1.44 1996/12/11 16:16:07 graaff Exp $
+# $Id: checkbot.pl,v 1.46 1996/12/30 15:27:11 graaff Exp $
 # (Log information can be found at the end of the script)
 
 require 5.001;
@@ -48,11 +48,12 @@ checkbot [B<--debug>] [B<--help>] [B<--verbose>] [B<--url> start URL]
          [B<--ignore> ignore string] [B<-file> file name] 
          [B<--mailto> email address]
          [B<--note> note] [B<--sleep> seconds] [B<--timeout> timeout]
+         [start URLs]
 
 =head1 DESCRIPTION
 
 Checkbot verifies the links in a specific portion of the World Wide
-Web. It creates HTML pages with diagnostics.
+Web. It creates HTML pages with diagnostics. 
 
 Checkbot's options are:
 
@@ -61,7 +62,8 @@ Checkbot's options are:
 =item --url <start URL>
 
 Set the start URL. Checkbot starts checking at this URL, and then
-recursively checks alls links found on the page.
+recursively checks all links found on this page. The start URL takes
+precedence over additional URLs specified on the command line.
 
 =item --match <match string>
 
@@ -71,8 +73,8 @@ the page local, retrieves it, and will check all the links contained
 on it. Otherwise the page is considered external and it is only
 checked with a HEAD request.
 
-If no explicit I<match string> is given, the start URL (See option
-C<--url>) will be used as a match string instead.
+If no explicit I<match string> is given, the first start URL (See
+option C<--url>) will be used as a match string instead.
 
 The I<match string> can be a perl regular expression.
 
@@ -154,7 +156,7 @@ use AnyDBM_File;
 @AnyDBM_File::ISA = qw(DB_File GDBM_File NDBM_File);
 
 # Version information
-($main::VERSION) = sprintf("%d.%02d", q$Revision: 1.44 $ =~ /(\d+)\.(\d+)/);
+($main::VERSION) = sprintf("%d.%02d", q$Revision: 1.46 $ =~ /(\d+)\.(\d+)/);
 
 &check_options();
 &init_modules();
@@ -186,7 +188,8 @@ sub check_options {
   my $result = GetOptions(qw(debug help verbose url=s match=s exclude|x=s file=s ignore|z=s mailto|M=s note|N=s proxy=s sleep=i timeout=i));
 
   # Handle arguments, some are mandatory, some have defaults
-  &print_help if ($main::opt_help && $main::opt_help) || !$main::opt_url;
+  &print_help if (($main::opt_help && $main::opt_help) 
+                  || (!$main::opt_url && $#ARGV == -1));
   $main::opt_timeout = 120 unless defined($main::opt_timeout) && length($main::opt_timeout);
   $main::opt_verbose = 0 unless $main::opt_verbose;
   $main::opt_sleep = 2 unless defined($main::opt_sleep) && length($main::opt_sleep);
@@ -201,7 +204,6 @@ sub check_options {
 
   # Display messages about the options
   print STDERR "*** Starting in verbose mode\n" if $main::opt_verbose;
-
 }
 
 sub init_modules {
@@ -224,6 +226,7 @@ sub init_modules {
 }
 
 sub init_globals {
+  my $url;
 
   # Remember start time
   $main::start_time = localtime();
@@ -248,14 +251,15 @@ sub init_globals {
   %main::problem = ();
   %main::servers = ();
 
-  # Start URL
-  # Create the start URL
-  $main::starturl = new URI::URL $main::opt_url;
-
-  if ($main::starturl->scheme eq 'file') {
-    $main::starturl->host('localhost');
+  # Initialize the start URLs. --url takes precedence. Otherwise
+  # just process URLs in order as they appear on the command line.
+  unshift(@ARGV, $main::opt_url) if $main::opt_url;
+  foreach (@ARGV) {
+    $url = new URI::URL $_;
+    $url->host('localhost') if $url->scheme eq 'file';
+    $main::opt_match = $url unless defined $main::opt_match;
+    push(@main::starturls, $url);
   }
-  $main::opt_match = $main::opt_url unless defined $main::opt_match;
 
   # Variables to keep track of number of links
   $main::LINKS = 0;
@@ -286,8 +290,10 @@ sub setup {
     || die "$0: Unable to open QUEUE $main::new_queue for writing: $!\n";
 
 
-  # Prepare CURRENT queue with starting URL
-  print CURRENT $main::starturl->as_string . "|\n";
+  # Prepare CURRENT queue with starting URLs
+  foreach (@main::starturls) {
+    print CURRENT $_->as_string . "|\n";
+  }
   close CURRENT;
 
   open(CURRENT, $main::cur_queue) 
@@ -365,7 +371,9 @@ sub handle_url {
     } else {
       $type = guess_media_type($url->path);
     }
-    if ($type =~ /html/o && $url->scheme =~ /^(http|file|ftp|gopher)$/o) {
+    if ($type =~ /html/o 
+        && $url->scheme =~ /^(http|file|ftp|gopher)$/o
+        && (!defined $main::opt_exclude || $url !~ /$main::opt_exclude/o)) {
       $reqtype = 'GET';
     } else {
       $reqtype = 'HEAD';
@@ -422,34 +430,31 @@ sub check_external {
   $main::ua->proxy(['http', 'ftp'], $main::opt_proxy) 
     if defined($main::opt_proxy);
 
+  # I'll just read in all external URLs in an array, sort them, and
+  # then remove duplicates and tally them. This improves over the old
+  # situation because we don't rely on sort and wc being there, and
+  # the tally will actually be correct. Drawback: we might get into
+  # memory problems more easily. Oh well, buy more, I suppose.
 
-  # We use an external sort and uniq program, because they
-  # usually handle large files much better
-  rename $main::extfile, $main::extfile . '.unsorted';
-  system 'sort', '-u', '-o',  $main::extfile, "$main::extfile.unsorted";
-  unlink $main::extfile . '.unsorted';
+  print STDERR "*** Reading and sorting external URLs\n";
+  open EXTERNAL, $main::extfile
+    or die "$0: Unable to open $main::extfile for reading: $!\n";
+  # Gobble!
+  my @externals = sort <EXTERNAL>;
 
-  # Now I need to know how many links are left.  I'll use 'wc' for
-  # now, but it seems all of this could be done in perl.
-  open WC, "wc -l $main::extfile | "
-    || die "$0: Unable to open a pipe to wc:$!\n";
-  <WC> =~ /^\s*(\d+)/;
-  $main::st_ext[$main::TODO] = $1;
+  $main::st_ext[$main::TODO] = $#externals;
   $main::st_ext[$main::DUPS] = $main::st_ext[$main::LINKS] - $main::st_ext[$main::TODO];
-  close WC;
 
   print STDERR "*** Checking $main::st_ext[$main::TODO] external links\n"
-    if defined $main::opt_verbose;
+    if $main::opt_verbose;
   # We know that our list is sorted, but the same URL
   # can exist several types, once for each parent
   # For now we just look at the first url/parent pair, but
   # ideally we should list this for each pair (i.e. for
   # each page on which the link occurs.
-  open(EXTERNAL, $main::extfile) 
-    || die "$0: Unable to open $main::extfile for reading: $!\n";
-  while(<EXTERNAL>) {
-    chomp;
+  foreach (@externals) {
     ($newurl, $urlparent) = split(/\|/);
+    $main::st_ext[$main::TODO]--;
 
     next if $prevurl eq $newurl;
     $prevurl = $newurl;
@@ -484,10 +489,8 @@ sub check_external {
 	}
       }
     }
-    $main::st_ext[$main::TODO]--;
     &check_point();
   }
-  close EXTERNAL;
 }
 
 
@@ -567,10 +570,11 @@ sub create_page {
     # Checkbot session parameters
     print OUT "<h2>Checkbot session parameters</h2>\n";
     print OUT "<table>\n";
-    print OUT "<tr><th>--url</th><td>Start URL</td><td>$main::starturl</td></tr>\n";
-    print OUT "<tr><th>--match</th><td>Match regular expression</td><td>$main::opt_match</td></tr>\n";
-    print OUT "<tr><th>--exclude</th><td>Exclude regular expression</td><td>$main::opt_exclude</td></tr>\n" if defined $main::opt_exclude;
-    print OUT "<tr><th>--ignore</th><td>Ignore regular expression</td><td>$main::opt_ignore</td></tr>\n" if defined $main::opt_ignore;
+    print OUT "<tr><th align=left>--url</th><td>Start URL(s)</td><td>",
+              join(',', @main::starturls), "</td></tr>\n";
+    print OUT "<tr><th align=left>--match</th><td>Match regular expression</td><td>$main::opt_match</td></tr>\n";
+    print OUT "<tr><th align=left>--exclude</th><td>Exclude regular expression</td><td>$main::opt_exclude</td></tr>\n" if defined $main::opt_exclude;
+    print OUT "<tr><th align=left>--ignore</th><td>Ignore regular expression</td><td>$main::opt_ignore</td></tr>\n" if defined $main::opt_ignore;
     
     print OUT "</table>\n";
 
@@ -756,11 +760,11 @@ sub print_server_problems {
 	my $path = '/' . $parent->path;
 	my $string = "";
 	if ($response->code != $prevcode 
-	    || $response->message !~ m/$prevmessage/i) {
+	    || lc($response->message) ne $prevmessage) {
 	  $string .= '</dl><h4><b>' . $response->code . '</b> '
 	    . $response->message . "</h4>\n<dl>\n";
 	  $prevcode = $response->code;
-	  $prevmessage = $response->message;
+	  $prevmessage = lc($response->message);
 	  $prevpath = "";
 	}
 	if ($path ne $prevpath) {
@@ -844,9 +848,15 @@ sub ip_address {
   return $main::ip_cache{$host} if defined $main::ip_cache{$host};
 
   my($name,$aliases,$adrtype,$length,@addrs) = gethostbyname($host);
-  my($n1,$n2,$n3,$n4) = unpack ('C4',$addrs[0]);
-
-  $main::ip_cache{$host} = "$n1.$n2.$n3.$n4";
+  if (defined $addrs[0]) {
+    my($n1,$n2,$n3,$n4) = unpack ('C4',$addrs[0]);
+    $main::ip_cache{$host} = "$n1.$n2.$n3.$n4";
+  } else {
+    # Whee! No IP-address found for this host. Just keep whatever we
+    # got for the host. If this really is some kind of error it will
+    # be found later on.
+    $main::ip_cache{$host} = $host;
+   }
 }
 
 sub count_problems {
@@ -881,6 +891,12 @@ sub byproblem {
 
 
 # $Log: checkbot.pl,v $
+# Revision 1.46  1996/12/30 15:27:11  graaff
+# Several bugs fixed and features added, see changelog
+#
+# Revision 1.45  1996/12/24 13:59:15  graaff
+# Deal with IP address not found.
+#
 # Revision 1.44  1996/12/11 16:16:07  graaff
 # Proxy support, small bugs fixed.
 #
