@@ -5,72 +5,86 @@ body {
 }
 
 hr {
-	color : white;
-	width : 1px;
-	position : absolute;
+	color: white;
+	background-color: black;
+	width: 1px;
+	position: absolute;
 }
 
-h1	{
-	font-size: 22pt;
-	padding-bottom : 10px;
-	background-color : transparent;
-	color : #00008B;
+h1 {
+	padding-bottom: 10px;
+	color: #00008B;
+	background-color: transparent;
 }
 	
-h2	{
-	font-size: 14pt;
+h2 {
 	color: #8B0000;
 	background-color: #FFEBCD;
 	margin-top: 20px;
 	padding: 10px;
-	border: thin;
-	border-color : Black;
-	border-style : solid;
+	border: thin	Black	solid;
 }
 
 h4 {
-	border : thin;
-	border-style : solid;
+	border-width: thin;
+	border-style: solid;
 	padding: 10px;
 	width: 50%;
+	color: Black;
 	background-color: #FFEBCD;
 }
 em {
 	text-decoration : underline;
 	font-style : normal;
-	}
-	dt {
-	background-color : #F0FFFF;
 }
+
+dt {
+	color: Black;
+	background-color: #F0FFFF;
+}
+
 dd {
-	border-left : thick;
-	border-left-color : Red;
-	border-left-style : solid;
+	border-left: thick	Red	solid;
 	padding-left: 10px;
 	padding-top: 5px;
 	margin-bottom: 10px;
 }
-table	{
-	background-color : Gray;
-	}
-	
-TH	{
+
+table {
+	color: Black;
+	background-color: Gray;
+}	
+
+th {
+	color: Black;
 	background: #DCDCDC;
 	padding : 5px;
-	}
-	td {
-	background-color : white;
-	padding-right : 10px;
+}
+
+td {
+	color: Black;
+	background-color: White;
+	padding-right: 10px;
 	padding-left: 10px;
 }
-A:link	{	text-decoration: none;
-		color: #007676;
-	}
-A:visited {	text-decoration: none;
-		color: #006060;
-	}
-A:hover	{
+
+a:link {
+	text-decoration: none;
+	color: #007676;
+	background-color: White;
+}
+
+a:visited {
+	text-decoration: none;
+	color: #006060;
+	background-color: White;
+}
+a:hover {
 	text-decoration: none;
 	color: green;
 	background-color: #F5F5DC;
-	}
+}
+
+img {
+	border: none;
+}

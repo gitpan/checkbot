@@ -1,3 +1,44 @@
+2003-08-31  Hans de Graaff  <hans@degraaff.org>
+
+	* Checkbot 1.73 released
+
+2003-08-30  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (printServerProblems): Protect against undefined status.
+
+2003-08-29  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (handle_doc): Ignore URIs matching --ignore as they are
+	being found.
+	(handle_url): Remove check for --ignore option here.
+	Update documentation for --ignore.
+	(print_help): Idem.
+
+2003-08-21  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot: Made --interval description a bit more clear.
+
+2003-07-26  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (init_modules): Uncomment proxy support, but it now
+	applies to all requests, not just external ones.
+	(print_help): Update --proxy help text.
+	Update perldoc documentation.
+
+2003-07-05  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot: Additional explanation for --exclude option.
+
+2003-06-28  Bernd Petrovitsch  <bernd@firmix.at>
+
+	* checkbot.css: Additional cleaning up of the CSS file.
+
+2003-06-26  Bernd Petrovitsch  <bernd@firmix.at>
+
+	* checkbot: Produce valid XHTML 1.1 pages.
+
+	* checkbot.css: Clean up of the CSS file.
+
 2003-05-04  Hans de Graaff  <hans@degraaff.org>
 
 	* Checkbot 1.72 released

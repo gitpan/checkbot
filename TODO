@@ -1,3 +1,17 @@
+> 1) I have checkbot walking a fairly large site nightly and thus the
+>    output
+> page is quite large. It'd be really nice if it could be broken down into
+> multiple pages based on error code
+
+
+> 3) And finally it'd be nice to be able to output, in addition to the
+>    HTML, a
+> machine parseable form like TSV,CSV, or something else which would contain
+> response code, url the error appears on, error url, and error detail (if
+> it exists). I'd like to be able to take that and import it into other
+> applications.
+
+
 This file is no longer being updated, as I have moved my project
 management into ShadowPlan. I hope to have an HTML version of the
 current state online soon. -- Hans 30-Apr-2001

@@ -13,7 +13,7 @@
 # Info-URL: http://degraaff.org/checkbot/
 # Comments to: checkbot@degraaff.org
 #
-# $Id: checkbot,v 1.72 2003/05/04 18:36:03 graaff Exp $
+# $Id: checkbot,v 1.73 2003/08/31 17:25:09 graaff Exp $
 # (Log information can be found at the end of the script)
 
 require 5.004;
@@ -94,7 +94,10 @@ I<match string> would be C<www.someserver.xyz/($|[^/]+.html)>.
 =item --exclude <exclude string>
 
 URLs matching the I<exclude string> are considered to be external,
-even if they happen to match the I<match string> (See option C<--match>).
+even if they happen to match the I<match string> (See option
+C<--match>). URLs matching the --exclude string are still being
+checked and will be reported if problems are found, but they will not
+be checked for further links into the site.
 
 The I<exclude string> can be a perl regular expression. For example,
 to consider all URLs with a query string external, use C<[=\?]>. This
@@ -115,18 +118,17 @@ in each URL.
 
 =item --ignore <ignore string>
 
-If a URL has an error, and matches the I<ignore string>, its error
-will not be listed. This can be useful to stop certain errors from
-being listed.
+URLs matching the I<ignore string> are not checked at all, they are
+completely ignored by Checkbot. This can be useful to ignore known
+problem links, or to ignore links leading into databases. The I<ignore
+string> is matched after the I<filter string> has been applied.
 
 The I<ignore string> can be a perl regular expression.
 
 =item --proxy <proxy URL>
 
-This attribute specifies the URL for a proxy server.  Only external URLs
-are queried through this proxy server, because Checkbot assumes all
-internal URLs can be accessed directly.  Currently only the HTTP and FTP
-protocols will be send to the proxy server.
+This attribute specifies the URL for a proxy server. Only the HTTP and
+FTP protocols will be send to the proxy server.
 
 =item --internal-only
 
@@ -176,9 +178,10 @@ Default timeout for the requests, specified in seconds. The default is
 
 =item --interval <seconds>
 
-The maximum interval between updates in seconds. Default is 3 hours
-(10800 seconds). Checkbot will start the interval at one minute, and
-gradually extend it towards the maximum interval.
+The maximum interval between updates of the results web pages in
+seconds. Default is 3 hours (10800 seconds). Checkbot will start the
+interval at one minute, and gradually extend it towards the maximum
+interval.
 
 =item --file <file name>
 
@@ -291,7 +294,7 @@ my %options = ();
 
 # Version information
 my $VERSION;
-( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.72 $ =~ /(\d+)\.(\d+)/);
+( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.73 $ =~ /(\d+)\.(\d+)/);
 
 # If on a Mac we should ask for the arguments through some MacPerl stuff
 if ($^O eq 'MacOS') {
@@ -396,11 +399,9 @@ sub init_modules {
   $main::ua = new LWP::UserAgent;
   $main::ua->agent("Checkbot/$VERSION LWP/" . LWP::Version);
   $main::ua->timeout($main::opt_timeout);
-  # TODO: we have this option for a proxy for the external pages....
-  # should probably be changed to be a proxy for all pages...
   # Add a proxy to the user agent, if defined
-  #$main::ua->proxy(['http', 'ftp'], $main::opt_proxy)
-  #  if defined($main::opt_proxy);
+  $main::ua->proxy(['http', 'ftp'], $main::opt_proxy)
+    if defined($main::opt_proxy);
 
   require Mail::Send if defined $main::opt_mailto;
 
@@ -628,20 +629,15 @@ sub handle_url {
     handle_doc($response) if $reqtype eq 'GET' and is_internal($url->as_string);
   } else {
 
-    # Right, so it wasn't the smashing succes we hoped for, perhaps we
-    # can just ignore the bad news
-    if (defined $main::opt_ignore && $url =~ /$main::opt_ignore/o) {
-      output "Ignore $url";
-    } else {
-      # We should bring the bad news
-      output $response->status_line, 2;
-      # and store the pertinent information for later
-      unless ($response->code =~ /$main::opt_dontwarn/o) {
-	$url_error{$url}{'code'} = $response->code;
-	$url_error{$url}{'status'} = $response->message;
-	push @{$url_parent{$url}}, $urlparent;
-	$stats{'problem'}++;
-      }
+    # Right, so it wasn't the smashing succes we hoped for, so bring
+    # the bad news
+    output $response->status_line, 2;
+    # and store the pertinent information for later
+    unless ($response->code =~ /$main::opt_dontwarn/o) {
+      $url_error{$url}{'code'} = $response->code;
+      $url_error{$url}{'status'} = $response->message;
+      push @{$url_parent{$url}}, $urlparent;
+      $stats{'problem'}++;
     }
 
     if ($response->is_redirect and is_internal($url->as_string)) {
@@ -786,14 +782,17 @@ sub create_page {
 
     open(OUT, ">$main::file.new") 
 	|| die "$0: Unable to open $main::file.new for writing:\n";
-    print OUT "<html><head>\n";
+    print OUT "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n";
+    print OUT "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">\n";
+    print OUT "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\">\n";
+    print OUT "<head>\n";
     if (!$final_page) {
-      printf OUT "<META HTTP-EQUIV=\"Refresh\" CONTENT = %d>\n",
+      printf OUT "<meta http-equiv=\"Refresh\" content=\"%d\" />\n",
       int($main::cp_int * 60 / 2 - 5);
     }
 
     print OUT "<title>Checkbot report</title>\n";
-    print OUT "<link rel=\"StyleSheet\" type=\"text/css\" href=\"$main::opt_style\">\n" if defined $main::opt_style;
+    print OUT "<link rel=\"stylesheet\" type=\"text/css\" href=\"$main::opt_style\" />\n" if defined $main::opt_style;
     print OUT "</head>\n";
     print OUT "<body>\n";
     print OUT "<h1><em>Checkbot</em>: main report</h1>\n";
@@ -803,14 +802,14 @@ sub create_page {
     if ($final_page) {
       print OUT "Done.\n"
     } else {
-      print OUT "Running since $main::start_time.<br>\n";
-      print OUT "Last update at ". localtime() . ".<br>\n";
-      print OUT "Next update in <b>", int($main::cp_int), "</b> minutes.\n";
+      print OUT "Running since $main::start_time.<br />\n";
+      print OUT "Last update at ". localtime() . ".<br />\n";
+      print OUT "Next update in <strong>", int($main::cp_int), "</strong> minutes.\n";
     }
     print OUT "</td></tr></table>\n\n";
 
     # Summary (very brief overview of key statistics)
-    print OUT "<hr><h2>Report summary</h2>\n";
+    print OUT "<hr /><h2>Report summary</h2>\n";
 
     print OUT "<table>\n";
     print OUT "<tr><th>Links checked</th><td>", $stats{'link'}, "</td></tr>\n";
@@ -822,17 +821,17 @@ sub create_page {
     printAllServers($final_page);
 
     # Checkbot session parameters
-    print OUT "<hr><h2>Checkbot session parameters</h2>\n";
+    print OUT "<hr /><h2>Checkbot session parameters</h2>\n";
     print OUT "<table>\n";
-    print OUT "<tr><th align=left>--url</th><td>Start URL(s)</td><td>",
+    print OUT "<tr><th align=\"left\">--url</th><td>Start URL(s)</td><td>",
               join(',', @starturls), "</td></tr>\n";
-    print OUT "<tr><th align=left>--match</th><td>Match regular expression</td><td>$main::opt_match</td></tr>\n";
-    print OUT "<tr><th align=left>--exclude</th><td>Exclude regular expression</td><td>$main::opt_exclude</td></tr>\n" if defined $main::opt_exclude;
-    print OUT "<tr><th align=left>--filter</th><td>Filter regular expression</td><td>$main::opt_filter</td></tr>\n" if defined $main::opt_filter;
-    print OUT "<tr><th align=left>--ignore</th><td>Ignore regular expression</td><td>$main::opt_ignore</td></tr>\n" if defined $main::opt_ignore;
-    print OUT "<tr><th align=left>--dontwarn</th><td>Don't warn for these codes</td><td>$main::opt_dontwarn</td></tr>\n" if $main::opt_dontwarn ne 'xxx';
-    print OUT "<tr><th align=left>--enable-virtual</th><td>Use virtual names only</td><td>yes</td></tr>\n" if $main::opt_enable_virtual;
-    print OUT "<tr><th align=left>--internal-only</th><td>Check only internal links</td><td>yes</td></tr>\n" if defined $main::opt_internal_only;
+    print OUT "<tr><th align=\"left\">--match</th><td>Match regular expression</td><td>$main::opt_match</td></tr>\n";
+    print OUT "<tr><th align=\"left\">--exclude</th><td>Exclude regular expression</td><td>$main::opt_exclude</td></tr>\n" if defined $main::opt_exclude;
+    print OUT "<tr><th align=\"left\">--filter</th><td>Filter regular expression</td><td>$main::opt_filter</td></tr>\n" if defined $main::opt_filter;
+    print OUT "<tr><th align=\"left\">--ignore</th><td>Ignore regular expression</td><td>$main::opt_ignore</td></tr>\n" if defined $main::opt_ignore;
+    print OUT "<tr><th align=\"left\">--dontwarn</th><td>Don't warn for these codes</td><td>$main::opt_dontwarn</td></tr>\n" if $main::opt_dontwarn ne 'xxx';
+    print OUT "<tr><th align=\"left\">--enable-virtual</th><td>Use virtual names only</td><td>yes</td></tr>\n" if $main::opt_enable_virtual;
+    print OUT "<tr><th align=\"left\">--internal-only</th><td>Check only internal links</td><td>yes</td></tr>\n" if defined $main::opt_internal_only;
 
     print OUT "</table>\n";
 
@@ -864,8 +863,8 @@ sub printAllServers {
   my ($finalPage) = @_;
 
   my $server;
-  print OUT "<hr><h2>Overview per server</h2>\n";
-  print OUT "<table> <tr> <th>Server</th><th>Server<br>Type</th><th>Unique<br>links</th><th>Problem<br>links</th><th>Ratio</th></tr>\n";
+  print OUT "<hr /><h2>Overview per server</h2>\n";
+  print OUT "<table><tr><th>Server</th><th>Server<br />Type</th><th>Unique<br />links</th><th>Problem<br />links</th><th>Ratio</th></tr>\n";
 
   foreach $server (sort keys %main::servers) {
     print_server($server, $finalPage);
@@ -982,6 +981,12 @@ sub handle_doc {
 	  unless defined eval '$url =~ s' . $main::opt_filter
       }
 
+      # Should we ignore this URL?
+      if (defined $main::opt_ignore and $url =~ /$main::opt_ignore/o) {
+	output "--ignore: $url", 1;
+	next;
+      }
+
       # Check whether URL has fully-qualified hostname
       if ($url->can('host') and $url->scheme ne 'news') {
         if (! defined $url->host) {
@@ -1045,32 +1050,35 @@ sub print_server {
   my $filename = "$main::server_prefix-$server.html";
   $filename =~ s/:/-/o;
 
-  print OUT "<tr> <td>";
+  print OUT "<tr><td>";
   print OUT "<a href=\"@{[ (fileparse($filename))[0] ]}\">" if $server_problem > 0;
   print OUT "$server";
   print OUT "</a>" if $server_problem > 0;
   print OUT "</td>";
   print OUT "<td>" . get_server_type($server) . "</td>";
-  printf OUT "<td align=right>%d</td> <td align=right>%d</td>",
+  printf OUT "<td align=\"right\">%d</td> <td align=\"right\">%d</td>",
   $main::servers{$server} + $server_problem,
   $server_problem;
   my $ratio = $server_problem / ($main::servers{$server} + $server_problem) * 100;
-  print OUT "<td align=right>";
-  print OUT "<b>" unless $ratio < 0.5;
+  print OUT "<td align=\"right\">";
+  print OUT "<strong>" unless $ratio < 0.5;
   printf OUT "%4d%%", $ratio;
-  print OUT "</b>" unless $ratio < 0.5;
+  print OUT "</strong>" unless $ratio < 0.5;
   print OUT "</td>";
   print OUT "</tr>\n";
 
   # Create this server file
   open(SERVER, ">$filename")
     || die "Unable to open server file $filename for writing: $!";
-  print SERVER "<html><head>\n";
+  print SERVER "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n";
+  print SERVER "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">\n";
+  print SERVER "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\">\n";
+  print SERVER "<head>\n";
   if (!$final_page) {
-    printf SERVER "<META HTTP-EQUIV=\"Refresh\" CONTENT = %d>\n",
-      int($main::cp_int * 60 / 2 - 5);
+    printf SERVER "<meta http-equiv=\"Refresh\" content=\"%d\" />\n",
+    int($main::cp_int * 60 / 2 - 5);
   }
-  print SERVER "<link rel=\"StyleSheet\" type=\"text/css\" href=\"$main::opt_style\">\n" if defined $main::opt_style;
+  print SERVER "<link rel=\"stylesheet\" type=\"text/css\" href=\"$main::opt_style\" />\n" if defined $main::opt_style;
   print SERVER "<title>Checkbot: output for server $server</title></head>\n";
   print SERVER "<body><h2><em>Checkbot</em>: report for server <tt>$server</tt></h2>\n";
   print SERVER "<p>Go To: <a href=\"@{[ (fileparse($main::file))[0] ]}\">Main report page</a>";
@@ -1086,7 +1094,9 @@ sub print_server {
 
 # Return a string containing Checkbot's signature for HTML pages
 sub signature {
-  return "<hr>\nPage created by <a href=\"http://degraaff.org/checkbot/\">Checkbot $VERSION</a> on <em>" . localtime() . "</em>.\n</body></html>";
+  return "<hr />\n<p>Page created by <a href=\"http://degraaff.org/checkbot/\">Checkbot $VERSION</a> on <em>" . localtime() . "</em>.</p>\n".
+    "<p><a href=\"http://validator.w3.org/check/referer\"><img src=\"http://www.w3.org/Icons/valid-xhtml11\" alt=\"Valid XHTML 1.1!\" height=\"31\" width=\"88\" /></a></p>".
+    "</body></html>";
 }
 
 # Loop through all possible problems, select relevant ones for this server
@@ -1095,7 +1105,7 @@ sub printServerProblems {
   my ($server) = @_;
   $server = quotemeta $server;
 
-  my $separator = "<hr>\n";
+  my $separator = "<hr />\n";
 
   my %thisServerList = ();
 
@@ -1127,7 +1137,8 @@ sub printServerProblems {
 	my $status = $thisServerList{$code}{$parent}{$url};
 	$urlOut .= "<li><a href=\"$url\">$url</a><br>\n";
 	$urlOut .= "$status\n"
-	  if $status ne status_message($code);
+	  if defined $status and $status ne status_message($code);
+	$urlOut .= "</li>";
       }
       if ($urlOut ne '') {
 	$codeOut .= "<dt><a href=\"$parent\">$parent</a>\n<dd>\n";
@@ -1151,7 +1162,7 @@ sub printServerWarnings {
   my $oldWarningType = '';
   my $url;
   my $parent;
-  my $separator = "<hr>\n";
+  my $separator = "<hr />\n";
 
   foreach $warningType (sort keys %warning) {
     my %thisServerList = ();
@@ -1178,6 +1189,7 @@ sub printServerWarnings {
       foreach my $url (sort keys %{ $thisServerList{$parent} }) {
 	print SERVER "<a href=\"$url\">$url</a><br>";
       }
+      print SERVER "</dd>\n";
     }
     print SERVER "</dl>\n";
   }
@@ -1225,12 +1237,11 @@ sub print_help {
   print "                     If no match is given, the start URL is used as a match\n";
   print "  --exclude exclude  Exclude pages if the URL matches 'exclude'\n";
   print "  --filter regexp    Run regexp on each URL found\n";
-  print "  --ignore ignore    Do not list error messages for pages that the\n";
-  print "                     URL matches 'ignore'\n";
+  print "  --ignore ignore    Ignore URLs matching 'ignore'\n";
   print "  --file file        Write results to file, default is checkbot.html\n";
   print "  --mailto address   Mail brief synopsis to address when done.\n";
   print "  --note note        Include Note (e.g. URL to report) along with Mail message.\n";
-  print "  --proxy URL        URL of proxy server for external http and ftp requests.\n";
+  print "  --proxy URL        URL of proxy server HTTP and FTP requests.\n";
   print "  --internal-only    Only check internal links, skip checking external links.\n";
   print "  --sleep seconds    Sleep this many seconds between requests (default 0)\n";
   print "  --style url        Reference the style sheet at this URL.\n";
@@ -1281,6 +1292,12 @@ sub count_problems {
 
 
 # $Log: checkbot,v $
+# Revision 1.73  2003/08/31 17:25:09  graaff
+# Checkbot now tries to produce valid XHTML 1.1, URLs matching the
+# --ignore option are now completely ignored; they used to be checked
+# but not reported, Proxy support works again, but --proxy now applies
+# to all link, Documentation fixes.
+#
 # Revision 1.72  2003/05/04 18:36:03  graaff
 #  * URLs with query strings are now checked by default, the --exclude
 #    option can be used to revert to the previous behavior
