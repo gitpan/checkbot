@@ -29,7 +29,7 @@ print OUT <<'!NO!SUBS!';
 # Info-URL: http://degraaff.org/checkbot/
 # Comments to: checkbot@degraaff.org
 #
-# $Id: checkbot.pl,v 1.65 2001/10/21 08:07:19 graaff Exp $
+# $Id: checkbot.pl,v 1.66 2001/10/25 19:46:42 graaff Exp $
 # (Log information can be found at the end of the script)
 
 require 5.004;
@@ -222,7 +222,7 @@ my %problems = ();
 
 # Version information
 my $VERSION;
-( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.65 $ =~ /(\d+)\.(\d+)/);
+( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.66 $ =~ /(\d+)\.(\d+)/);
 
 # If on a Mac we should ask for the arguments through some MacPerl stuff
 if ($^O eq 'MacOS') {
@@ -815,7 +815,7 @@ sub handle_doc {
   # valid...
 
   # When we received the document we can add a notch to its server
-  $main::servers{$response->base->netloc}++;
+  $main::servers{$response->base->authority}++;
 
   my $p = HTML::LinkExtor->new(undef, $response->base);
   $p->parse($response->content);
@@ -905,9 +905,9 @@ sub get_headers {
 
     # If we already know a HEAD won't work, skip it and do GET
     next if $reqtype eq 'HEAD' && ($url->scheme =~ /^gopher$/o ||
-				   $main::servers_get_only{$url->netloc} );
+				   $main::servers_get_only{$url->authority} );
 
-    print STDERR "     $reqtype ", $url->abs, "\n" if $main::opt_verbose;
+    print STDERR "     $reqtype $url\n" if $main::opt_verbose;
     $ref_header = new HTTP::Headers 'Referer' => $urlparent;
     $request = new HTTP::Request($reqtype, $url, $ref_header);
     $response = $main::ua->simple_request($request);
@@ -918,7 +918,7 @@ sub get_headers {
       if ($response->code =~ /^(405|501)$/o) {
 	print STDERR "Server doesn't like HEAD requests; retrying\n"
 	  if $main::opt_verbose;
-	$main::servers_get_only{$url->netloc}++;
+	$main::servers_get_only{$url->authority}++;
 	next;
       }
 
@@ -927,7 +927,7 @@ sub get_headers {
       elsif ($response->status_line =~ /^500 unexpected EOF/o) {
 	print STDERR "Server hung up on HEAD request; retrying\n"
 	  if $main::opt_verbose;
-	$main::servers_get_only{$url->netloc}++;
+	$main::servers_get_only{$url->authority}++;
 	next;
       }
 
@@ -937,7 +937,7 @@ sub get_headers {
 	     $response->code =~ /^(404|500)$/o) {
 	print STDERR "Unreliable response to HEAD request; retrying\n"
 	  if $main::opt_verbose;
-	$main::servers_get_only{$url->netloc}++;
+	$main::servers_get_only{$url->authority}++;
 	next;
       }
 
@@ -946,7 +946,7 @@ sub get_headers {
 	     $response->code =~ /^500$/o) {
 	print STDERR "Unreliable response to HEAD request; retrying\n"
 	  if $main::opt_verbose;
-	$main::servers_get_only{$url->netloc}++;
+	$main::servers_get_only{$url->authority}++;
 	next;
       }
 
@@ -955,7 +955,7 @@ sub get_headers {
 	     $response->code =~ /^500$/o) {
 	print STDERR "Unreliable response to HEAD request; retrying\n"
 	  if $main::opt_verbose;
-	$main::servers_get_only{$url->netloc}++;
+	$main::servers_get_only{$url->authority}++;
 	next;
       }
 
@@ -1223,6 +1223,9 @@ sub count_problems {
 
 
 # $Log: checkbot.pl,v $
+# Revision 1.66  2001/10/25 19:46:42  graaff
+# Fixed two bugs introduced in 1.65 related to using URI.
+#
 # Revision 1.65  2001/10/21 08:07:19  graaff
 #  * Move to URI from URI::URL
 #  * Start writing results pages right at the start

@@ -1,3 +1,15 @@
+2001-10-25  Hans de Graaff  <hans@degraaff.org>
+
+	* Checkbot 1.66 released
+
+	* checkbot.pl (get_headers): URI doesn't know about netloc, but it
+	does know about authority.
+	(get_headers): $url is already absolute, no need for ->abs
+
+2001-10-18  Hans de Graaff  <hans@degraaff.org>
+
+	* Checkbot 1.65 released
+
 2001-10-14  Hans de Graaff  <hans@degraaff.org>
 
 	* checkbot.pl (handle_doc): Print a notice when external non
