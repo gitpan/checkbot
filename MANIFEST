@@ -4,3 +4,4 @@ Makefile.PL
 README
 TODO
 checkbot.pl
+checkbot.css

@@ -29,7 +29,7 @@ print OUT <<'!NO!SUBS!';
 # Info-URL: http://degraaff.org/checkbot/
 # Comments to: checkbot@degraaff.org
 #
-# $Id: checkbot.pl,v 1.67 2001/12/16 16:15:55 graaff Exp $
+# $Id: checkbot.pl,v 1.68 2002/09/28 21:02:45 graaff Exp $
 # (Log information can be found at the end of the script)
 
 require 5.004;
@@ -54,6 +54,7 @@ checkbot [B<--debug>] [B<--help>] [B<--verbose>] [B<--url> start URL]
          [B<--note> note] [B<--sleep> seconds] [B<--timeout> timeout]
          [B<--interval> seconds] [B<--dontwarn> HTTP responde codes]
          [B<--enable-virtual>]
+         [B<--allow-simple-hosts>]
          [B<--language> language code]
          [start URLs]
 
@@ -154,8 +155,10 @@ some files around that otherwise would be deleted.
 =item --sleep <seconds>
 
 Number of I<seconds> to sleep in between requests. Default is 0
-seconds. Setting this option can be useful to keep the load on the web
-server down while running Checkbot.
+seconds, i.e. do not sleep at all between requests. Setting this
+option can be useful to keep the load on the web server down while
+running Checkbot. This option can also be set to a fractional number,
+i.e. a value of 0.1 will sleep one tenth of a second between requests.
 
 =item --timeout <timeout>
 
@@ -195,11 +198,32 @@ checked once. When you want to check multiple virtual servers this
 causes problems, which this feature work around by using the hostname
 to distinguish the server.
 
+=item --allow-simple-hosts
+
+This option turns off warnings about URLs which contain unqualified
+host names. This is useful for intranet sites which often use just a
+simple hostname or even C<localhost> in their links. 
+
 =item --language
 
 The argument for this option is a two-letter language code. Checkbot
 will use language negotiation to request files in that language. The
 default is to request English language (language code 'en').
+
+=back
+
+=head1 HINTS AND TIPS
+
+=over
+
+=item Problems with checking FTP links
+
+Some users may experience consistent problems with checking FTP
+links. In these cases it may be useful to instruct Net::FTP to use
+passive FTP mode to check files. This can be done by setting the
+environment variable FTP_PASSIVE to 1. For example, using the bash
+shell: C<FTP_PASSIVE=1 checkbot ...>. See the Net::FTP documentation
+for more details.
 
 =back
 
@@ -236,7 +260,7 @@ my %problems = ();
 
 # Version information
 my $VERSION;
-( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.67 $ =~ /(\d+)\.(\d+)/);
+( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.68 $ =~ /(\d+)\.(\d+)/);
 
 # If on a Mac we should ask for the arguments through some MacPerl stuff
 if ($^O eq 'MacOS') {
@@ -276,7 +300,7 @@ sub check_options {
 
   # Get command-line arguments
   use Getopt::Long;
-  my $result = GetOptions(qw(debug help verbose url=s match=s exclude|x=s file=s style=s ignore|z=s mailto|M=s note|N=s proxy=s internal-only sleep=i timeout=i interval=i dontwarn=s enable-virtual language=s));
+  my $result = GetOptions(qw(debug help verbose url=s match=s exclude|x=s file=s style=s ignore|z=s mailto|M=s note|N=s proxy=s internal-only sleep=f timeout=i interval=i dontwarn=s enable-virtual language=s allow-simple-hosts));
 
   # Handle arguments, some are mandatory, some have defaults
   &print_help if (($main::opt_help && $main::opt_help) 
@@ -295,6 +319,8 @@ sub check_options {
     warn "Argument --language $main::opt_language is not a valid language code\nUsing English as a default.\n";
     $main::opt_language = 'en';
   }
+  $main::opt_allow_simple_hosts = 0
+	  unless $main::opt_allow_simple_hosts;
 
   # The default for opt_match will be set later, because we might want
   # to muck with opt_url first.
@@ -304,6 +330,9 @@ sub check_options {
     if $main::opt_verbose;
   print STDERR "    Will skip checking of external links\n"
     if $main::opt_internal_only;
+
+  print STDERR "    Allowing unqualified host names\n"
+    if $main::opt_allow_simple_hosts;
 }
 
 sub init_modules {
@@ -463,7 +492,8 @@ sub check_internal {
     if ($main::st_int[$main::TODO]) {
       print STDERR "*** Moving queues around, $main::st_int[$main::TODO] to do\n" 
 	if $main::opt_verbose;
-      close CURRENT if defined(<CURRENT>);
+      close CURRENT
+	or warn "Error while closing CURRENT filehandle: $!\n";
       close QUEUE;
 
       # TODO: should check whether these succeed
@@ -500,7 +530,7 @@ sub handle_url {
   $main::st_int[$main::LINKS]++;
 	
   if (defined($url->scheme) 
-      && $url->scheme =~ /^(http|file|ftp|gopher|nntp)$/o
+      && $url->scheme =~ /^(https?|file|ftp|gopher|nntp)$/o
       && $url->path !~ /[=\?]/o ) {
     if ($url->path =~ /\/$/o || $url->path eq "") {
       $type = 'text/html';
@@ -523,7 +553,7 @@ sub handle_url {
     }
 
     if ($type =~ /html/o 
-        && $url->scheme =~ /^(http|file|ftp|gopher)$/o
+        && $url->scheme =~ /^(https?|file|ftp|gopher)$/o
         && (!defined $main::opt_exclude || $url !~ /$main::opt_exclude/o)) {
       $reqtype = 'GET';
     } else {
@@ -534,7 +564,8 @@ sub handle_url {
       unless defined($response) and $reqtype eq 'HEAD';
 
     if ($response->is_success) {
-      sleep($main::opt_sleep) unless $main::opt_debug || $url->scheme eq 'file';
+      select(undef, undef, undef, $main::opt_sleep)
+	unless $main::opt_debug || $url->scheme eq 'file';
 
       # If this url moves off of this site then return now
       if ($url !~ /$main::opt_match/o 
@@ -640,7 +671,7 @@ sub check_external {
 
     my $url = URI->new_abs($newurl, $urlparent);
 
-    if ($url->scheme =~ /^(http|file|ftp|gopher|nntp)$/o) { 
+    if ($url->scheme =~ /^(https?|file|ftp|gopher|nntp)$/o) { 
 
       my $response = get_headers($url, $urlparent, $main::opt_language);
 
@@ -648,7 +679,7 @@ sub check_external {
 	if (defined $main::opt_ignore && $url =~ /$main::opt_ignore/o) {
 	  print STDERR "Ignore  $url error\n" if $main::opt_verbose;
 	} else {
-	  printf STDERR "          ", $response->status_line
+	  printf STDERR "          ", $response->code, ' ', $response->status_line, "\n"
 	    if $main::opt_verbose;
           push @{$problems{$response->code}{$url}}, $response unless $response->code =~ /$main::opt_dontwarn/o;
 	  $main::st_ext[$main::PROBL]++;
@@ -817,7 +848,7 @@ sub add_checked {
     # class should deal with stuff like this. Checkbot can't be expected
     # to know which URI schemes do have a host component and which types
     # don't.
-    $url->host(ip_address($url->host)) if $url->scheme =~ /^(http|ftp|gopher|https|ldap|news|nntp|pop|rlogin|snews|telnet)$/;
+    $url->host(ip_address($url->host)) if $url->scheme =~ /^(https?|ftp|gopher|https|ldap|news|nntp|pop|rlogin|snews|telnet)$/;
     $urlstr = $url->as_string;
   }
 
@@ -860,13 +891,18 @@ sub handle_doc {
       # Remove fragments, if any
       $url->fragment(undef);
 
+      # Determine in which tag this URL was found
+      # Ignore <base> tags because they need not point to a valid URL
+      # in order to work (e.g. when directory indexing is turned off.
+      next if $tag eq 'base';
+
       # Check whether URL has fully-qualified hostname
-      if ($url->scheme =~ /^(http|ftp)/) {
+      if ($url->scheme =~ /^(https?|ftp)$/) {
         if (! defined $url->host) {
           print STDERR "--> No host name found in URL: $url\n" if $main::opt_verbose;
           $warning{'No host name found in URL'}{$url} .= $response->base->as_string . "\n";
           next;
-        } elsif ($url->host !~ /\./) {
+        } elsif (!$main::opt_allow_simple_hosts && $url->host !~ /\./) {
           print STDERR "--> Unqualified host name: $url\n" if $main::opt_verbose;
           $warning{'Unqualified host name in URL'}{$url} .= $response->base->as_string . "\n";
         }
@@ -881,11 +917,15 @@ sub handle_doc {
 	}
       } else {
 	# Add this as an external link if we can check the protocol later
-	if ($url =~ /^(http|ftp|gopher):/o) {
+	if ($url =~ /^(https?|ftp|gopher):/o) {
 	  print EXTERNAL $url . "|" . $response->base . "\n";
 	  $doc_ext++;
 	} else {
-	  print STDERR "--> Ignored: external URL is not HTTP, FTP or gopher: $url\n" if $main::opt_verbose;
+	  # Maybe we should be doing something sensible with URLs which
+	  # we can't check directly. For now just don't show the warning
+	  # as this generates much output with little to no gain.
+
+	  #  print STDERR "--> Ignored: external URL is not HTTP, FTP or gopher: $url\n" if $main::opt_verbose;
 	}
       }
     }
@@ -1006,6 +1046,15 @@ sub get_headers {
 
 sub add_to_queue {
   my ($url, $parent) = @_;
+
+  # Some servers do not process // correctly in requests for relative
+  # URLs. We should flag them here. Note that // in a URL path is
+  # actually valid per RFC 2396, and that they should not be removed
+  # when processing relative URLs as per RFC 1808. See
+  # e.g. <http://deesse.univ-lemans.fr:8003/Connected/RFC/1808/18.html>.
+  # Thanks to Randal Schwartz and Reinier Post for their explanations.
+  print STDERR "!!!! URL contains double slash in path which may cause runaway Checkbot run\n     link to $url\n     on $parent\n" if $url =~ /http:\/\/.*\/\//;
+  # TODO: generate a warning to be put on the results page.
 
   print QUEUE $url . '|' . $parent . "\n";
   $main::st_int[$main::TODO]++;
@@ -1213,10 +1262,12 @@ sub print_help {
   print "  --proxy URL        URL of proxy server for external http and ftp requests.\n";
   print "  --internal-only    Only check internal links, skip checking external links.\n";
   print "  --sleep seconds    Sleep this many seconds between requests (default 0)\n";
+  print "  --style url        Reference the style sheet at this URL.\n";
   print "  --timeout seconds  Timeout for http requests in seconds (default 120)\n";
   print "  --interval seconds Maximum time interval between updates (default 10800)\n";
   print "  --dontwarn codes   Do not write warnings for these HTTP response codes\n";
   print "  --enable-virtual   Use only virtual names, not IP numbers for servers\n";
+  print "  --allow-simple-hosts  Do not warn about unqualified host names\n";
   print "  --language         Specify 2-letter language code for language negotiation\n";
   print "\n";
   print "Options --match, --exclude, and --ignore can take a perl regular expression\nas their argument\n\n";
@@ -1263,6 +1314,9 @@ sub count_problems {
 
 
 # $Log: checkbot.pl,v $
+# Revision 1.68  2002/09/28 21:02:45  graaff
+# Version 1.68
+#
 # Revision 1.67  2001/12/16 16:15:55  graaff
 #  * A --language option to ask the server for pages in other languages
 #  * Bug fixes related to URI package and non-standard server names

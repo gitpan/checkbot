@@ -1,3 +1,52 @@
+2002-09-28  Hans de Graaff  <hans@degraaff.org>
+
+	* Checkbot 1.68 released
+
+2002-08-05  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl (handle_doc): Comment out warning about external
+	URLs with non-checkable schemes to avoid lots of useless output.
+
+2002-06-09  Jostle Lemcke  <jostle@users.sourceforge.net>
+
+	* checkbot.pl: Added --allow-simple-hosts option. This option
+	turns off the warnings for unqualified host names.
+
+2002-04-01  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl (handle_doc): Ignore URLs found in <base>
+	tags. Suggestion from Roman Maeder.
+
+2002-03-31  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl (print_help): Mention --style option in help message.
+	(check_internal): Always close CURRENT filehandle, and add warn
+	for potential problems with this based on patch and report from
+	Greg Larkin.
+
+	* checkbot.pl: Added HINTS AND TIPS section to
+	documentation. Added hint on using passive FTP based on feedback
+	from Roman Maeder.
+
+2002-03-31  Brent Verner  <brent@rcfile.org>
+
+	* checkbot.pl (handle_doc): Only match http and https, not stuff
+	like httpa.
+
+2002-03-31  Paco Hope  <paco@paco.to>
+
+	* checkbot.css: Contributed style sheet for Checkbot. Use with
+	--style option.
+
+2002-01-20  Roman Maeder  <maeder@mathconsult.ch>
+
+	* checkbot.pl (handle_url): Use select() to sleep instead of
+	sleep() so that sleep interval can be fractional.
+
+2001-12-16  Hans de Graaff  <hans@degraaff.org>
+
+	* Checkbot 1.67 released
+
 2001-11-16  Hans de Graaff  <hans@degraaff.org>
 
 	* checkbot.pl: Add example for --match argument based on question
