@@ -1,3 +1,76 @@
+2003-12-17  Hans de Graaff  <hans@degraaff.org>
+
+	* Checkbot 1.74 is released
+
+	* checkbot (add_error): Take into account that status message can
+	be undefined.
+
+2003-12-15  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot: Put Checkbot errors in a hash to have one set of
+	descriptions around.
+	(handle_doc): Use it.
+	(checkbot_status_message): Use it to ind the status message for a
+	code from HTTP codes, Checkbot codes, or a generic status message.
+	(printServerProblems): Use it.
+	(handle_url): Move checks for --dontwarn and --suppression
+	features from here ...
+	(add_error): ... to here so that it applies to all errors.
+
+2003-12-14  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot: Document that Checkbot defines its own response codes
+	for common problems.
+	No longer a need for the %warning hash.
+	(add_error): New function to add a new error into the hashes.
+	(handle_url): Use it.
+	(handle_doc): Use it for what previously were warnings.
+	(printServerWarnings): Obsolete as warnings have been changed to
+	use the normal error handling routines.
+	Marked --allow-simple-hosts option as deprecated, because this can
+	now be handled in a more generic way by the --dontwarn mechanism.
+	(print_help): Removed --allow-simple-hosts option from help.
+	(add_to_queue): Move code to check for double slash in URL to ...
+	(handle_doc): ... here as Checkbot error 903.
+
+2003-11-29  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (printServerProblems): Oops. Make sure all output is
+	going to the right file, not stdout.
+	Add new --suppress option which reads a file with response code /
+	URL combinations to be suppressed in the output, based on patch by
+	Rob Chekaluk.
+	(init_suppression): Read suppresson file and fill has with
+	results.
+	(handle_url): Use it.
+	(print_help): Document it.
+
+2003-11-24  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot: Add example to --ignore argument.
+
+2003-11-23  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (init_modules): Delete commented-out code to enable
+	HTTP 1.1 in LWP. HTTP 1.1 has been the default in LWP for a while
+	and does not need special code to be enabled.
+
+2003-11-21  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (printServerProblems): Don't assume that status_message
+	is defined for all possible codes, based on patch by Thomas
+	Kuerten.
+
+2003-10-18  Hans de Graaff  <hans@degraaff.org>
+
+	* Makefile.PL: Require LWP 5.70 because problems with HEAD of
+	ftp:// links have been solved in this release.
+
+2003-09-05  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (printServerProblems): Put line breaks in HTML file in
+	a more logical place.
+
 2003-08-31  Hans de Graaff  <hans@degraaff.org>
 
 	* Checkbot 1.73 released
