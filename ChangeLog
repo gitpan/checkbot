@@ -1,3 +1,70 @@
+2002-12-29  Hans de Graaff  <hans@degraaff.org>
+
+	* Checkbot 1.71 released
+	
+	* checkbot (handle_url): Make sure we feed is_internal a string.
+	(handle_url): Use existing variable instead of Referer header to
+	store parent URL.
+
+	* Checkbot 1.70 created for testing, but not released
+
+	* checkbot (performRequest): Add HTTP 403 error to list of error
+	codes to retry with a GET.
+	(handle_url): Only follow redirections for internal links.
+
+2002-12-28  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot: Removed reference to AnyDBM_File because it is not
+	used anywhere.
+	Rewrote global statistics gathering to be more simple and more
+	accurate.
+	Added --filter option which allows rewriting of URLs before they
+	are checked, based on patch from Eli the Bearded <eli@netusa.net>.
+	Simplified storage of URLs with problems
+	(get_headers): Removed.
+	(performRequest): Included code from get_headers here.
+	(count_problems): Updated for new storage of URLs
+	(printServerProblems): Idem.
+	(handle_url): Idem.
+	(handle_doc): Idem.
+	(count_problems): Idem.
+	(printServerProblems): Idem.
+	(handle_doc): Add code to report all pages on which a problematic
+	URL appears.
+	(init_globals): Changed default --match argument to exclude final
+	page name.
+	
+
+2002-12-27  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (output): Moved printing, including indentation and
+	verbose checking, to function 'output'.
+	(handle_doc): No more distinction between internal and external
+	links, we throw all links found in the queue.
+	(handle_doc): Removed statistics for now, they are too buggy.
+	(is_checked): New function takes into account that we sometimes
+	translate hostnames to IP addresses.
+	(handle_doc): Use it.
+	(check_internal): Removed dependency on statistics, use actual
+	queue contents to determine when all links are checked.
+	(handle_url): Only query server for file type on
+	application/octet-stream documents.
+	(is_internal): New function to determine if URL is internal.
+	(handle_url): Rewritten to use new functions and to deal with
+	external URLs being mixed in, and generally cleaned up.
+	(handle_url): Moved --internal-only checks here.
+	(check_external): Removed.
+	(check_links): Renamed from check_internal.
+	Added small blurb to documentation on distinction between internal
+	and external links and the way checkbot checks these.
+
+	* t/test.t: Added simple test case: can checkbot be run without
+	arguments?
+
+2002-12-25  Hans de Graaff  <hans@degraaff.org>
+
+	* Checkbot 1.69 released
+
 2002-12-25  Hans de Graaff  <hans@degraaff.org>
 
 	* checkbot (get_headers): Make sure feedback on HEAD requests gets
