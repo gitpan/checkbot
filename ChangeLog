@@ -1,3 +1,37 @@
+2001-10-14  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl (handle_doc): Print a notice when external non
+	HTTP/FTP URLs are dropped.
+
+2001-09-29  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl (init_modules and other places): Remove
+	URI::URL::strict call and use of new URI::URL because it is
+	obsolete, we should use the URI classes now.
+
+2001-09-23  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl (init_globals): Initialize last checkpoint time with
+	0 instead of current time, so that we write out a set of pages
+	right at the start. This will catch problems with permissions for
+	these pages as early as possible.
+
+2001-07-01  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl (get_server_type): Take into account that we might
+	not learn anything about the server
+
+2001-05-06  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl (get_headers): Factored out of check_external so
+	that moving to using GET requests only will be easier later.
+
+2001-04-30  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl (send_mail): Really fix printing of starting URLs in
+	email. All URLs are now printed in the subject and body of the
+	message.
+
 2001-04-15  Hans de Graaff  <hans@degraaff.org>
 
 	* Checkbot 1.64 released

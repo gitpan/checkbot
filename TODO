@@ -1,3 +1,7 @@
+This file is no longer being updated, as I have moved my project
+management into ShadowPlan. I hope to have an HTML version of the
+current state online soon. -- Hans 30-Apr-2001
+
 *  Doing a HEAD on an ISMAP link causes a 500 server error. Maybe a 
    GET will be better for this.
 
