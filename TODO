@@ -1,0 +1,53 @@
+*  Doing a HEAD on an ISMAP link causes a 500 server error. Maybe a 
+   GET will be better for this.
+
+*  Add a mechanism for entering authentication data in order to check
+   such areas as well. Possibly allow multiple pairs. Rather not enter
+   the passwords on the commandline.
+
+*  Obey Robot rules. My current idea is to obey robot rules by default
+   on all 'external' request, and ignore them on 'local'
+   requests. Both of these should be changeable.
+
+*  Make it possible to convert http:// references to file://
+   references, so that a local server can be checked without going
+   through the WWW server.
+
+*  Make use of some sort of state, so that subsequent runs can choose
+   to just check the broken links again.
+
+*  Retry time-out problem links after checking all other links to
+   better deal with transient problems.
+
+*  Add problem links such as the 500's series together.
+
+*  Parse client-side (and server-side) MAP's if possible.
+
+*  Maybe use a Netscape feature to open problem links in a new
+   browser, so that the problem links page remains visible and
+   available. 
+
+*  Include (or link to) a page which contains explanations for the
+   different error messages. (But watch out for server-specific
+   messages, if any)
+
+*  The external link count is way off. Write code to parse the
+   external queue first, and then run through it to actually check the
+   links. 
+
+*  Add an option to indicate which error codes can be ignored by
+   Checkbot's reports.
+
+*  Maybe Checkbot should check the contents of pages as well? Note
+   problems in HTML, suggest sizes for GIFs, etc.?
+
+*  Keep an internal list of hosts to which we cannot connect, so that
+   we avoid being stalled a while for each link to that host.
+
+*  Use FQDNs internally to avoid scanning a site twice, once with a
+   CNAME and once with its A name.
+
+*  Keep state between runs, but make sure we still are able to run
+   Checkbot on several areas (concurrently). Uses for state
+   information: list of consistent bad host, remembering previous bad
+   links and just check those qith a `quick' option.

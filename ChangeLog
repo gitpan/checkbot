@@ -1,0 +1,299 @@
+Wed Sep 25 10:58:06 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot.pl: 
+	Renamed from checkbot
+	Added preamble to set proper path for perl (code from Gisle Aas)
+
+	* Makefile.PL: First version, installs checkbot and checkbot.1
+
+	* checkbot: Changed $revision to $VERSION for MakeMaker.
+
+Thu Sep 12 15:09:07 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* index.html: updated required modules and location.
+
+	* checkbot: require LWP-5.02, because it fixes a few nasty bugs.
+
+Thu Sep  5 16:00:42 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* index.html: 
+	Removed old and out-of-date documentation. Replaced by link to
+	automatically generated html version of POD documentation
+	within Checkbot.
+
+	* checkbot:
+	Fixed documentation bugs.
+	Really fix the case insensitive comparison.
+
+Sun Sep  1 20:31:46 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot (print_server_problems): 
+	Make comparison for error message case insensitive.
+
+Fri Aug 30 20:19:56 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot: Fixed several typo's.
+
+Wed Aug  7 10:06:29 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot (handle_doc): 
+	The new LinkExtractor is nice, but I shouldn't treat its output as
+	a hash when it is an array, and thus skipping every other link.
+
+Mon Aug  5 08:46:24 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot (print_server): 
+	Fixed silly bug in calculating the percentage of problems on each
+	server.
+
+Fri Aug  2 21:38:39 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot: Added several patches by Bruce Speyer:
+	Added -N note option to go along with -M, -z to suppress reporting
+	errors on matching links.
+	Added enough logic to catch gopher URLS if no gopher server found.
+	Need further logic to parse gopher returned menu for bad file or
+	directory.
+
+	* checkbot: Made a good start with POD documentation inside the
+	checkbot file. Try 'perldoc checkbot'.
+
+	* TODO: Added number of suggestions by Luuk de Boer.
+
+	* checkbot (send_mail): Include summary of links checked in message.
+
+Fri Aug  2 13:01:02 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot: 
+	Added check for correct LWP version. We now need 5.01, due to bugs
+	in the handling of the BASE attribute in previous versions.
+
+Sat Jul 27 21:13:26 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot: 
+	Added several patches by Bruce Speyer:
+	Optimized some static regular expressions.
+	Fixed not setting the timeout, making the -t option useless.
+
+Mon Jul 22 22:28:34 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot (create_page): 
+	Fixed number of columns in summary output.
+
+Sat Jul 20 11:49:23 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot (handle_doc): Changed to use the new HTML::LinkExtor,
+	which will be present in LWP5.01. Should be more efficient, and
+	less prone to memory leaks.
+
+Sat Jul 13 12:41:23 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot (create_page): Forgot to add the ratio on the page.
+	(check_external): Fix problems with different `wc` output.
+
+Sat Jun 22 11:30:12 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot: Use correct base URL as returned with the document.
+	Only check document when we used 'GET' to receive it.
+	Remove magic guessing with ending slash of starting url.
+	Deal with redirections by inserting redirected URLs into queue
+	again.
+
+Thu Jun 20 15:58:20 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot: Major cleanup of initialization code. Also added todo
+	counts to progression page, and proper todo handling for external
+	links.
+
+Sun Jun 16 21:16:28 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot: Added -M option: send mail when Checkbot is done.
+	Fixed division by zero bug when external links == 0
+
+Tue Jun  4 12:46:39 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot: Better way to ignore fragments.
+
+Sat Jun  1 15:14:52 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot: Don't print decimals with the precentages.
+	Major update of counting, and printing counts. Cleaned up
+	variables, corrected counting, made display more consistent and
+	clear.
+
+Wed May 29 21:18:26 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot: Small fixes to support lwp-win32 as well, thanks to
+	Martin Cleaver.
+
+Mon May 27 09:21:30 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot: oops, small error in regexp caused script to append a
+	slash to almost all start-url's. Fixed.
+	
+	* checkbot (handle_doc): External links without full URL's were
+	not always handled properly.
+
+Sun May 26 10:04:39 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot: If the starting URL doesn't end in a slash, and
+	doesn't have an extension, assume we need to add a slash.
+
+	* index.html: Add version number to web page, and make sure it gets
+	updated automatically.
+
+Wed May 22 09:58:36 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot: Changed verbose output of links found on pages.
+
+Tue May 14 16:43:38 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* TODO: updated with respect to recent changes.
+
+Mon May 13 15:06:05 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot: Added LWP version number to agent field, changed page
+	update policy, and updated script to LWP5b13.
+
+Sat May  4 21:38:56 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot: Changed checked array to an associative array. Will
+	consume more memory, but drastically cut back on lookup time.
+	
+	Rewrote handle_url logic to be more clear. Also fixed bug where
+	servers would be added to the list unjustly.
+
+	Sleep was only done on problem links, not after each request.
+
+	Also added checks for already checked links while scanning through
+	the document, and only add those links not checked to the queue.
+
+	Add percentage problem links for each individual server.
+
+Mon Apr 29 08:43:12 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot: Deal with unknown or non-determinable server types.
+	
+	Only add links to the external queue when we know we can check
+	their protocol.
+
+	Additional changes to layout and content of pages.
+
+Sun Apr 28 21:16:51 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot: Rewrote report page.
+
+Wed Apr 24 22:39:43 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot: Added a number of patches by Tim MacKenzie
+	Added -s option to set the seconds of sleep between requests.
+	Remove work files when *not* debugging.
+	Only compile -m and -x regular expressions once.
+	Also check external ftp and nntp links (using HEAD only).
+	Get rid of huge memory leak! (Also noted by Fabrice Gaillard)
+
+Fri Mar 29 10:58:24 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot: 
+	Got rid of warnings about some variables.
+	Fixed problem with incorrect automatic -m argument when scanning
+	local files.
+
+Sun Mar 24 18:01:05 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot:
+	Added code to support regular expressions with the -m and -x
+	arguments. Thanks to Thomas Thiel for the patch and suggestions.
+	
+	No strict checking on schemes, fixes problem with unknown schemes
+	stopping checkbot. Thanks to Pierre-Yves Foucou.
+
+	* checkbot: 
+	Should create direcory for temporary files, and remove it
+	afterwards. Noted by Steve Fisk.
+
+Sat Mar 16 13:40:48 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot: 
+	Made a number of changes from or based on patches by Thomas Thiel:
+
+	Added missing t option in Getopts string.
+
+	Made -m argument optional. If not given, the -u argument is also
+	used as the start argument.
+
+	Temporary files are now created in a separate directory. Its name
+	contains the PID of Checkbot, to allow several concurrent
+	Checkbots being run. Also remove temporary files, unless
+	debugging.
+
+	Implement file:// scheme to allow direct checking (without HTTP
+        server)
+
+Fri Mar 15 11:06:13 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot: 
+	Fixed warnings (and in the process, a small bug as well).
+	Added URL and proper name to help.
+
+Sat Mar  2 11:51:45 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot: 
+	Added 'require 5.002' (because libwww-perl5b8 requires it).
+	Added 'use strict', and fixed problems resulting from this. This
+	can be seen as a first step towards fixing the huge
+	memory-consumption.
+	Updated help.
+
+Tue Feb 27 09:57:57 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot:
+	Fixed bug which occured when -x option was not present.
+	Updated script to use libwww-perl5b8 function names. This is not
+	backward compatible with versions prior to beta 8.
+
+Mon Feb 26 12:46:08 1996  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot:
+	Fixed bug with Referer header for external URL's.
+	Also make server pages auto-refresh.
+
+Sat Feb 24 11:48:15 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* TODO: New file.
+
+	* checkbot: Added single -x option as an additional exclude pattern.
+	This overrules the -m match attribute.
+
+Mon Dec 11 14:13:30 1995  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* index.html
+	Added libwww-perl5 address, and added a usage section.
+
+	* checkbot.pl
+	Removed this old perl4 version.
+
+Fri Dec  8 13:41:43 1995  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot: 
+	Major rewrite of most of the internal routines. The routines are
+	much more structured now, and broken up into smaller routines.
+	I also changed the way checked links are remembered. It should be
+	much less efficient, CPU-wise, but more efficient memory-wise.
+
+Fri Nov 24 16:45:18 1995  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot:
+	Fixed small problems, mostly with output.
+	Fixed checking of external links
+	Changed sorting order
+
+	* checkbot: 
+	Perl5 version now works for the most part. Although Checkbot isn't
+	fully finished I at least feel confident to release it.
+
+Fri Aug 25 11:23:36 1995  Hans de Graaff  <graaff@is.twi.tudelft.nl>
+
+	* Made a start with the perl5 version of checkbot. The modules in
+	perl5 (e.g. LWP) look very promising, and should make checkbot
+	quite a bit better.
