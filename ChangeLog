@@ -1,3 +1,46 @@
+2003-05-04  Hans de Graaff  <hans@degraaff.org>
+
+	* Checkbot 1.72 released
+	
+	* checkbot: Applied spelling fixes from Jens Schweikhardt.
+	(clean_up): Factored out of check_links so that it can also be
+	called when we catch a signal.
+	(got_signal): Catch signals like SIGINT and handle them, based on
+	patch by Jens Schweikhardt.
+
+2003-04-06  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (handle_url): No longer ignore URLs with a query
+	string. If checking these is not wanted then the --exclude option
+	can be used, and an example for this is now included in the
+	documentation.
+
+2003-03-30  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (printServerProblems): Add links to different error
+	codes on a server page for quick navigation.
+
+2003-02-22  Paul Merchant, Jr.  <Paul.L.Merchant.Jr@Dartmouth.EDU>
+
+	* checkbot: Initialize the statistics counters to avoid warnings.
+
+2003-01-15  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (output): Correct the check for --verbose; not
+	specifying it now generates no output.
+
+2003-01-06  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (handle_doc): The host name check does not make much
+	sense for news: scheme URLs.
+
+2003-01-03  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (init_globals): Only remove file from default --match
+	argument when there is a path component in the start URL.
+	Initialize problem counter to avoid warning about uninitialized
+	value.
+
 2002-12-29  Hans de Graaff  <hans@degraaff.org>
 
 	* Checkbot 1.71 released

@@ -13,7 +13,7 @@
 # Info-URL: http://degraaff.org/checkbot/
 # Comments to: checkbot@degraaff.org
 #
-# $Id: checkbot,v 1.71 2002/12/29 14:41:33 graaff Exp $
+# $Id: checkbot,v 1.72 2003/05/04 18:36:03 graaff Exp $
 # (Log information can be found at the end of the script)
 
 require 5.004;
@@ -29,7 +29,7 @@ Checkbot - WWW Link Verifier
 
 =head1 SYNOPSIS
 
-checkbot [B<--debug>] [B<--help>] [B<--verbose>] [B<--url> start URL] 
+checkbot [B<--debug>] [B<--help>] [B<--verbose>] [B<--url> start URL]
          [B<--match> match string] [B<--exclude> exclude string]
          [B<--proxy> proxy URL] [B<--internal-only>]
          [B<--ignore> ignore string] [B<--file> file name]
@@ -49,7 +49,7 @@ Checkbot verifies the links in a specific portion of the World Wide
 Web. It creates HTML pages with diagnostics.
 
 Checkbot uses LWP to find URLs on pages and to check them. It supports
-the same schemes as LWP does, and find the same links that
+the same schemes as LWP does, and finds the same links that
 HTML::LinkExtor will find.
 
 Checkbot considers links to be either 'internal' or
@@ -70,7 +70,7 @@ Set the start URL. Checkbot starts checking at this URL, and then
 recursively checks all links found on this page. The start URL takes
 precedence over additional URLs specified on the command line.
 
-If no scheme is protocol for the URL, the file protocol is assumed.
+If no scheme is specified for the URL, the file protocol is assumed.
 
 =item --match <match string>
 
@@ -96,18 +96,21 @@ I<match string> would be C<www.someserver.xyz/($|[^/]+.html)>.
 URLs matching the I<exclude string> are considered to be external,
 even if they happen to match the I<match string> (See option C<--match>).
 
-The I<exclude string> can be a perl regular expression.
+The I<exclude string> can be a perl regular expression. For example,
+to consider all URLs with a query string external, use C<[=\?]>. This
+can be useful when a URL with a query string unlocks the path to a
+huge database which will be checked.
 
 =item --filter <filter string>
 
-This options defines a I<filter string>, which is a perl regular
+This option defines a I<filter string>, which is a perl regular
 expression. This filter is run on each URL found, thus rewriting the
 URL before it enters the queue to be checked. It can be used to remove
 elements from a URL. This option can be useful when symbolic links
 point to the same directory, or when a content management system adds
 session IDs to URLs.
 
-For example C</old/new/> would replace occurances of 'old' with 'new'
+For example C</old/new/> would replace occurrences of 'old' with 'new'
 in each URL.
 
 =item --ignore <ignore string>
@@ -120,15 +123,15 @@ The I<ignore string> can be a perl regular expression.
 
 =item --proxy <proxy URL>
 
-This attribute specifies the URL for a proxy server.  Only external URLs 
-are queried through this proxy server, because Checkbot assumes all 
-internal URLs can be accessed directly.  Currently only the HTTP and FTP 
+This attribute specifies the URL for a proxy server.  Only external URLs
+are queried through this proxy server, because Checkbot assumes all
+internal URLs can be accessed directly.  Currently only the HTTP and FTP
 protocols will be send to the proxy server.
 
-=item --internal-only 
+=item --internal-only
 
 Skip the checking of external links at the end of the Checkbot
-run. Only matching links are checked. Not that some redirections may
+run. Only matching links are checked. Note that some redirections may
 still cause external links to be checked.
 
 =item --mailto <email address>
@@ -174,7 +177,7 @@ Default timeout for the requests, specified in seconds. The default is
 =item --interval <seconds>
 
 The maximum interval between updates in seconds. Default is 3 hours
-(10800 seconds). Checkbot will start the intervale at one minute, and
+(10800 seconds). Checkbot will start the interval at one minute, and
 gradually extend it towards the maximum interval.
 
 =item --file <file name>
@@ -201,14 +204,14 @@ though their IP addresses may be the same. Normally Checkbot uses the
 IP address to distinguish servers. This has the advantage that if a
 server has two names (e.g. www and bamboozle) its pages only get
 checked once. When you want to check multiple virtual servers this
-causes problems, which this feature work around by using the hostname
+causes problems, which this feature works around by using the hostname
 to distinguish the server.
 
 =item --allow-simple-hosts
 
 This option turns off warnings about URLs which contain unqualified
 host names. This is useful for intranet sites which often use just a
-simple hostname or even C<localhost> in their links. 
+simple hostname or even C<localhost> in their links.
 
 =item --language
 
@@ -231,18 +234,23 @@ environment variable FTP_PASSIVE to 1. For example, using the bash
 shell: C<FTP_PASSIVE=1 checkbot ...>. See the Net::FTP documentation
 for more details.
 
-=item Run-away Checkbot 
+=item Run-away Checkbot
 
-In some cases Checkbot literaly takes forever to finish. There are two
-common causes for this problem. First, there might be a database
-application as part of the website which generates a new page based on
-links on another page. Since Checkbot tries to travel through all
-links this will create an infinite number of pages. Second, a server
-configuration problem can causes a loop in generating URLs for pages
-that really do not exist. This will result in URLs of the form
-http://some.server/images/images/images/logo.png, with ever more
-'images' included. Checkbot cannot check for this because the server
-should have indicated that the requested pages do not exist.
+In some cases Checkbot literally takes forever to finish. There are two
+common causes for this problem.
+
+First, there might be a database application as part of the website
+which generates a new page based on links on another page. Since
+Checkbot tries to travel through all links this will create an
+infinite number of pages. This kind of run-away effect is usually predictable. It can be avoided by using the --exclude option.
+
+Second, a server configuration problem can cause a loop in generating
+URLs for pages that really do not exist. This will result in URLs of
+the form http://some.server/images/images/images/logo.png, with ever
+more 'images' included. Checkbot cannot check for this because the
+server should have indicated that the requested pages do not
+exist. There is no easy way to solve this other than fixing the
+offending web server or the broken links.
 
 =back
 
@@ -258,7 +266,7 @@ This script can send mail when C<Mail::Send> is present.
 
 Hans de Graaff <hans@degraaff.org>
 
-=pod OSNAMES 
+=pod OSNAMES
 
 any
 
@@ -274,14 +282,16 @@ my %url_error = ();
 my %url_parent = ();
 
 # Hash to store statistics on link checking
-my %stats = ();
+my %stats = ('todo' => 0,
+	     'link' => 0,
+	     'problem' => 0 );
 
 # Options hash (to be filled by GetOptions)
 my %options = ();
 
 # Version information
 my $VERSION;
-( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.71 $ =~ /(\d+)\.(\d+)/);
+( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.72 $ =~ /(\d+)\.(\d+)/);
 
 # If on a Mac we should ask for the arguments through some MacPerl stuff
 if ($^O eq 'MacOS') {
@@ -308,7 +318,7 @@ exit 0;
 sub output {
   my ($line, $level) = @_;
 
-  return unless defined $main::opt_verbose;
+  return unless $main::opt_verbose;
 
   chomp $line;
 
@@ -332,7 +342,7 @@ sub check_options {
   my $result = GetOptions(qw(debug help verbose url=s match=s exclude|x=s file=s filter=s style=s ignore|z=s mailto|M=s note|N=s proxy=s internal-only sleep=f timeout=i interval=i dontwarn=s enable-virtual language=s allow-simple-hosts));
 
   # Handle arguments, some are mandatory, some have defaults
-  &print_help if (($main::opt_help && $main::opt_help) 
+  &print_help if (($main::opt_help && $main::opt_help)
                   || (!$main::opt_url && $#ARGV == -1));
   $main::opt_timeout = 120 unless defined($main::opt_timeout) && length($main::opt_timeout);
   $main::opt_verbose = 0 unless $main::opt_verbose;
@@ -389,7 +399,7 @@ sub init_modules {
   # TODO: we have this option for a proxy for the external pages....
   # should probably be changed to be a proxy for all pages...
   # Add a proxy to the user agent, if defined
-  #$main::ua->proxy(['http', 'ftp'], $main::opt_proxy) 
+  #$main::ua->proxy(['http', 'ftp'], $main::opt_proxy)
   #  if defined($main::opt_proxy);
 
   require Mail::Send if defined $main::opt_mailto;
@@ -408,7 +418,7 @@ sub init_globals {
     $main::file = $main::opt_file;
     $main::file =~ /(.*)\./;
     $main::server_prefix = $1;
-  } else { 
+  } else {
     $main::file = "checkbot.html";
     $main::server_prefix = "checkbot";
   }
@@ -416,6 +426,9 @@ sub init_globals {
 
   $main::cur_queue  = $main::tmpdir . "/queue";
   $main::new_queue  = $main::tmpdir . "/queue-new";
+
+  # Make sure we catch signals so that we can clean up temporary files
+  $SIG{'INT'} = $SIG{'TERM'} = $SIG{'HUP'} = $SIG{'QUIT'} = \&got_signal;
 
   # Set up hashes to be used
   %main::checked = ();
@@ -445,9 +458,10 @@ sub init_globals {
     my @matchurls;
     foreach my $url (@starturls) {
       # Remove trailing files from the match, e.g. remove index.html
-      # stuff so that we match on the host and/or directory instead.
+      # stuff so that we match on the host and/or directory instead,
+      # but only if there is a path component in the first place.
       my $matchurl = $url->as_string;
-      $matchurl =~ s!/[^/]+$!/!;
+      $matchurl =~ s!/[^/]+$!/! unless $url->path eq '';
       push(@matchurls, quotemeta $matchurl);
     }
     $main::opt_match = '^(' . join('|', @matchurls) . ')';
@@ -519,9 +533,23 @@ sub check_links {
   close QUEUE;
 
   unless (defined($main::opt_debug)) {
-    unlink $main::cur_queue, $main::new_queue;
-    rmdir $main::tmpdir;
+    clean_up();
   }
+}
+
+sub clean_up {
+  unlink $main::cur_queue, $main::new_queue;
+  rmdir $main::tmpdir;
+  output "Removed temporary directory $main::tmpdir and its contents.\n", 1;
+}
+
+sub got_signal {
+  my ($signalname) = @_;
+
+  clean_up() unless defined $main::opt_debug;
+
+  print STDERR "Caught SIG$signalname.\n";
+  exit 1;
 }
 
 # Whether URL is 'internal' or 'external'
@@ -557,8 +585,7 @@ sub handle_url {
 
   # Perhaps this is a URL we are not interested in checking...
   if (not defined($url->scheme) 
-      or $url->scheme !~ /^(https?|file|ftp|gopher|nntp)$/o
-      or $url->path =~ /[=\?]/o ) {
+      or $url->scheme !~ /^(https?|file|ftp|gopher|nntp)$/o ) {
     output "Ignore $url", 1;
     return;
   }
@@ -956,7 +983,7 @@ sub handle_doc {
       }
 
       # Check whether URL has fully-qualified hostname
-      if ($url->can('host')) {
+      if ($url->can('host') and $url->scheme ne 'news') {
         if (! defined $url->host) {
           output "--> No host name found in URL: $url";
           $warning{'No host name found in URL'}{$url} .= $response->base->as_string . "\n";
@@ -1046,7 +1073,7 @@ sub print_server {
   print SERVER "<link rel=\"StyleSheet\" type=\"text/css\" href=\"$main::opt_style\">\n" if defined $main::opt_style;
   print SERVER "<title>Checkbot: output for server $server</title></head>\n";
   print SERVER "<body><h2><em>Checkbot</em>: report for server <tt>$server</tt></h2>\n";
-  print SERVER "Go To: <a href=\"@{[ (fileparse($main::file))[0] ]}\">Main report page</a>.\n";
+  print SERVER "<p>Go To: <a href=\"@{[ (fileparse($main::file))[0] ]}\">Main report page</a>";
 
   printServerProblems($server, $final_page);
   printServerWarnings($server, $final_page);
@@ -1082,6 +1109,14 @@ sub printServerProblems {
     }
   }
 
+  # Do a run to find all error codes on this page, and include a table
+  # of contents to the actual report
+  foreach my $code (sort keys %thisServerList) {
+    print SERVER ", <a href=\"#rc$code\">$code ", status_message($code), "</a>";
+  }
+  print SERVER ".</p>\n";
+
+
   # Now run through this list and print the errors
   foreach my $code (sort keys %thisServerList) {
     my $codeOut = '';
@@ -1103,7 +1138,7 @@ sub printServerProblems {
     if ($codeOut ne '') {
       print SERVER $separator if $separator;
       $separator = '';
-      print SERVER "<h4>$code ", status_message($code), "</h4>\n";
+      print SERVER "<h4 id=\"rc$code\">$code ", status_message($code), "</h4>\n";
       print SERVER "<dl>\n$codeOut\n</dl>\n";
     }
   }
@@ -1246,6 +1281,14 @@ sub count_problems {
 
 
 # $Log: checkbot,v $
+# Revision 1.72  2003/05/04 18:36:03  graaff
+#  * URLs with query strings are now checked by default, the --exclude
+#    option can be used to revert to the previous behavior
+#  * The server results page contains shortcut links to each section
+#  * Removed warning for unqualified hostnames for news: URLs
+#  * Handling of signals such as SIGINT
+#  * Bug and documentation fixes
+#
 # Revision 1.71  2002/12/29 14:41:33  graaff
 # Two remaining bugs in new implementation fixed.
 #
