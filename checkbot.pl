@@ -20,14 +20,14 @@ print OUT <<'!NO!SUBS!';
 #
 # checkbot - A perl5 script to check validity of links in www document trees
 #
-# Hans de Graaff <j.j.degraaff@acm.org>, 1994-1997.
+# Hans de Graaff <j.j.degraaff@acm.org>, 1994-1998.
 # Based on Dimitri Tischenko, Delft University of Technology, 1994
 # Based on the testlinks script by Roy Fielding
 # With contributions from Bruce Speyer <bruce.speyer@elecomm.com>
 #
 # Info-URL: http://www.xs4all.nl/~graaff/checkbot/
 #
-# $Id: checkbot.pl,v 1.51 1997/09/06 14:01:58 graaff Exp $
+# $Id: checkbot.pl,v 1.52 1998/10/10 08:41:50 graaff Exp $
 # (Log information can be found at the end of the script)
 
 require 5.001;
@@ -153,9 +153,21 @@ Write the summary pages into file I<file name>. Default is C<checkbot.html>.
 
 =back
 
+=head1 PREREQUISITES
+
+This script uses the C<LWP> modules.
+
+=head1 COREQUISITES
+
+This script can send mail when C<Mail::Send> is present.
+
 =head1 AUTHOR
 
 Hans de Graaff <graaff@xs4all.nl>
+
+=pod OSNAMES 
+
+any
 
 =cut
 
@@ -169,7 +181,7 @@ my @starturls = ();
 
 # Version information
 my $VERSION;
-( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.51 $ =~ /(\d+)\.(\d+)/);
+( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.52 $ =~ /(\d+)\.(\d+)/);
 
 &check_options();
 &init_modules();
@@ -211,7 +223,8 @@ sub check_options {
   # to muck with opt_url first.
 
   # Display messages about the options
-  print STDERR "*** Starting in verbose mode\n" if $main::opt_verbose;
+  print STDERR "*** Starting Checkbot $VERSION in verbose mode\n" 
+    if $main::opt_verbose;
 }
 
 sub init_modules {
@@ -220,7 +233,6 @@ sub init_modules {
   use LWP::UserAgent;
   use LWP::MediaTypes;
   #use LWP::Debug qw(- +debug);
-  use HTML::Parse;
   use HTML::LinkExtor;
   $main::ua = new LWP::UserAgent;
   $main::ua->agent("Checkbot/$VERSION LWP/" . LWP::Version);
@@ -915,6 +927,9 @@ sub byproblem {
 
 
 # $Log: checkbot.pl,v $
+# Revision 1.52  1998/10/10 08:41:50  graaff
+# new version, some documentation work, and the HTML::Parse problem fixed.
+#
 # Revision 1.51  1997/09/06 14:01:58  graaff
 # per 5.004 changes and address changes
 #

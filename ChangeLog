@@ -1,3 +1,12 @@
+1998-10-10  Hans de Graaff  <Hans de Graaff <graaff@xs4all.nl>>
+
+	* checkbot.pl: Made POD conform to new scripts format better.
+
+1998-06-21  Hans de Graaff  <Hans de Graaff <graaff@xs4all.nl>>
+
+	* checkbot.pl (init_modules): HTML/Parse is no longer needed,
+	removed.
+
 Sat Sep  6 16:00:12 1997  Hans de Graaff  <Hans de Graaff <graaff@xs4all.nl>>
 
 	* checkbot 1.51 released

@@ -18,7 +18,7 @@ Checkbot.
 
 Changes between version can be found in the ChangeLog file.
 
-Making and installing Checkbot is simle:
+Making and installing Checkbot is easy:
 
     perl Makefile.PL
     make
