@@ -1,4 +1,40 @@
-1999-10-24  Hans de Graaff  <Hans de Graaff <graaff@xs4all.nl>>
+2000-01-30  Hans de Graaff  <Hans de Graaff <graaff@xs4all.nl>>
+
+	* checkbot.pl (handle_doc): Use eof instead of parse(undef) to end
+	parsing.
+
+2000-01-15  Hans de Graaff  <graaff@xs4all.nl>
+
+	* checkbot.pl (handle_doc): Show warnings about hostnames only on
+	the console when --verbose.
+
+2000-01-09  Hans de Graaff  <graaff@xs4all.nl>
+
+	* checkbot.pl: Added option --internal-only to skip checking of
+	external links altogether. Idea by David Hoekman
+	<dhoekman@halcyon.com>
+
+2000-01-02  Hans de Graaff  <graaff@xs4all.nl>
+
+	* checkbot.pl (handle_doc): Use canonical URI from LinkExtor,
+	which simplifies the rest of the logic and gets things working
+	with the new version of LinkExtor.
+
+2000-01-01  Stephane Bortzmeyer <bortzmeyer@pasteur.fr>
+
+	* checkbot.pl (init_globals): Create Checkbot workdir in $TMPDIR
+	if defined, /tmp otherwise.
+
+1999-12-31  Hans de Graaff  <graaff@xs4all.nl>
+
+	* checkbot.pl (handle_doc): Change frag to fragment.
+
+1999-11-07  Hans de Graaff  <graaff@xs4all.nl>
+
+	* checkbot.pl (handle_doc): Add warning for URLs for which LWP
+	can't determine a hostname, and don't check them further.
+
+1999-10-24  Hans de Graaff  <graaff@xs4all.nl>
 
 	* checkbot.pl (print_help): Added line on --interval option.
 

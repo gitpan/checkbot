@@ -17,7 +17,7 @@ $Config{'startperl'} -w
 !GROK!THIS!
  
 print OUT <<'!NO!SUBS!';
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 #
 # checkbot - A perl5 script to check validity of links in www document trees
 #
@@ -28,7 +28,7 @@ print OUT <<'!NO!SUBS!';
 #
 # Info-URL: http://www.xs4all.nl/~graaff/checkbot/
 #
-# $Id: checkbot.pl,v 1.57 1999/10/24 16:11:00 graaff Exp $
+# $Id: checkbot.pl,v 1.59 2000/01/30 20:23:32 graaff Exp $
 # (Log information can be found at the end of the script)
 
 require 5.001;
@@ -44,7 +44,7 @@ Checkbot - WWW Link Verifier
 
 checkbot [B<--debug>] [B<--help>] [B<--verbose>] [B<--url> start URL] 
          [B<--match> match string] [B<--exclude> exclude string]
-         [B<--proxy> proxy URL]
+         [B<--proxy> proxy URL] [B<--internal-only>]
          [B<--ignore> ignore string] [B<-file> file name] 
          [B<--mailto> email address]
          [B<--note> note] [B<--sleep> seconds] [B<--timeout> timeout]
@@ -102,6 +102,12 @@ This attribute specifies the URL for a proxy server.  Only external URLs
 are queried through this proxy server, because Checkbot assumes all 
 internal URLs can be accessed directly.  Currently only the HTTP and FTP 
 protocols will be send to the proxy server.
+
+=item --internal-only 
+
+Skip the checking of external links at the end of the Checkbot
+run. Only matching links are checked. Not that some redirections may
+still cause external links to be checked.
 
 =item --mailto <email address>
 
@@ -183,7 +189,7 @@ my %problems = ();
 
 # Version information
 my $VERSION;
-( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.57 $ =~ /(\d+)\.(\d+)/);
+( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.59 $ =~ /(\d+)\.(\d+)/);
 
 &check_options();
 &init_modules();
@@ -197,7 +203,12 @@ my $VERSION;
 undef %main::checked;
 %main::checked = ();
 
-&check_external();
+if (defined $main::opt_internal_only) {
+  print STDERR "*** Not checking external links because of --internal-only option.\n"
+    if defined $main::opt_verbose;
+} else {
+  check_external();
+}
 
 &create_page(1);
 &send_mail if defined $main::opt_mailto;
@@ -212,7 +223,7 @@ sub check_options {
 
   # Get command-line arguments
   use Getopt::Long;
-  my $result = GetOptions(qw(debug help verbose url=s match=s exclude|x=s file=s ignore|z=s mailto|M=s note|N=s proxy=s sleep=i timeout=i interval=i));
+  my $result = GetOptions(qw(debug help verbose url=s match=s exclude|x=s file=s ignore|z=s mailto|M=s note|N=s proxy=s internal-only sleep=i timeout=i interval=i));
 
   # Handle arguments, some are mandatory, some have defaults
   &print_help if (($main::opt_help && $main::opt_help) 
@@ -265,7 +276,7 @@ sub init_globals {
     $main::file = "checkbot.html";
     $main::server_prefix = "checkbot";
   }
-  $main::tmpdir = "/tmp/" . "Checkbot.$$";
+  $main::tmpdir = ($ENV{'TMPDIR'} or "/tmp/") . "Checkbot.$$";
 
   $main::cur_queue  = $main::tmpdir . "/queue";
   $main::new_queue  = $main::tmpdir . "/queue-new";
@@ -679,7 +690,7 @@ sub get_server_type {
 
   if ( ! defined($main::server_type{$server})) {
     if ($server eq 'localhost') {
-      $result = 'Direct access';
+      $result = 'Direct access through filesystem';
     } else {
       my $request = new HTTP::Request('HEAD', "http://$server/");
       my $response = $main::ua->simple_request($request);
@@ -727,39 +738,44 @@ sub handle_doc {
   # When we received the document we can add a notch to its server
   $main::servers{$response->base->netloc}++;
 
-  # Use the new LinkExtor
   my $p = HTML::LinkExtor->new(undef, $response->base);
   $p->parse($response->content);
-  $p->parse(undef);
+  $p->eof;
 
   # Parse the links we found in this document
   my @links = $p->links();
   foreach (@links) {
     my ($tag, %l) = @{$_};
     foreach (keys %l) {
-      my $url = $l{$_};
+      # Get the canonical URL, so we don't need to worry about base, case, etc.
+      my $url = $l{$_}->canonical;
 
       # Remove fragments, if any
-      $url->frag(undef);
+      $url->fragment(undef);
 
       # Check whether URL has fully-qualified hostname
-      if ($url->scheme =~ /^(http|ftp)/ and $url->host !~ /\./) {
-        print STDERR "--> Unqualified host name: $url\n";
-        $warning{'Unqualified host name in URL'}{$url} .= $url->base . "\n";
+      if ($url->scheme =~ /^(http|ftp)/) {
+        if (! defined $url->host) {
+          print STDERR "--> No host name found in URL: $url\n" if $main::opt_verbose;
+          $warning{'No host name found in URL'}{$url} .= $url . "\n";
+          next;
+        } elsif ($url->host !~ /\./) {
+          print STDERR "--> Unqualified host name: $url\n" if $main::opt_verbose;
+          $warning{'Unqualified host name in URL'}{$url} .= $url . "\n";
+        }
       }
 
-
-      if ($url->abs =~ /$main::opt_match/o) {
-	if (defined $main::checked{$url->abs}) {
+      if ($url =~ /$main::opt_match/o) {
+	if (defined $main::checked{$url}) {
 	  $doc_dup++;
 	} else {
-	  add_to_queue($url->abs, $response->base);
+	  add_to_queue($url, $response->base);
 	  $doc_new++;
 	}
       } else {
 	# Add this as an external link if we can check the protocol later
-	if ($url->abs =~ /^(http|ftp):/o) {
-	  print EXTERNAL $url->abs . "|" . $response->base . "\n";
+	if ($url =~ /^(http|ftp):/o) {
+	  print EXTERNAL $url . "|" . $response->base . "\n";
 	  $doc_ext++;
 	}
       }
@@ -970,6 +986,7 @@ sub print_help {
   print "  --mailto address   Mail brief synopsis to address when done.\n";
   print "  --note note        Include Note (e.g. URL to report) along with Mail message.\n";
   print "  --proxy URL        URL of proxy server for external http and ftp requests.\n";
+  print "  --internal-only    Only check internal links, skip checking external links.\n";
   print "  --sleep seconds    Sleep for secs seconds between requests (default 2)\n";
   print "  --timeout seconds  Timeout for http requests in seconds (default 120)\n";
   print "  --interval seconds Maximum time interval between updates (default 10800)\n\n";
@@ -1016,6 +1033,14 @@ sub count_problems {
 
 
 # $Log: checkbot.pl,v $
+# Revision 1.59  2000/01/30 20:23:32  graaff
+# --internal-only option, hide some warnings when not running verbose,
+# and fixed a warning.
+#
+# Revision 1.58  2000/01/02 15:39:59  graaff
+# Deal with hostnameless URIs, use TMPDIR where available, and work
+# nicely with the new HTML::LinkExtor.
+#
 # Revision 1.57  1999/10/24 16:11:00  graaff
 # Added URI check.
 #
