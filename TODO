@@ -9,6 +9,9 @@
    on all 'external' request, and ignore them on 'local'
    requests. Both of these should be changeable.
 
+   Obeying internal robots.txt might be a nice way to have a good
+   exclude mechanism.
+
 *  Make it possible to convert http:// references to file://
    references, so that a local server can be checked without going
    through the WWW server.
@@ -44,6 +47,9 @@
    will really be excluded). Maybe add a new option to really ignore
    options? Or just redo current options.
 
+   Perhaps a solution is to make separate exclude options for internal
+   and external links?
+
 *  Add an option to count hops instead of using match, and only hop
    that many links away? Suggested for single page checking, but might
    be useful on a larger scale as well? Yes, for instance against
@@ -76,3 +82,11 @@
    with errors?
 
 *  Proxy is a bit of a mess, I should look in to this and clean it up.
+
+*  Setting timeout on the useragent doesn't always make URLs time out.
+
+*  Sometimes it is difficult (for the Web-editors) to locate the
+   source of problems links, especially when the URL's is extracted
+   from a database (as we often do). Maybe it would be useful if
+   Checkbot could (optionally) list the link text (the text between <a
+   href="..."> and </a>) in the Checkbot output.

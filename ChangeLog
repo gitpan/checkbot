@@ -1,3 +1,39 @@
+2000-09-24  Hans de Graaff  <hans@degraaff.org>
+
+	* Checkbot 1.62 released
+
+2000-09-16  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl (send_mail): Only mention URL in the subject of the
+	mail if one is given through the --url option.
+	(check_external): The ALEPH web server is also broken with respect
+	to HEAD requests.
+
+2000-09-04  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl (check_external): JavaWebServer is also broken with
+	respect to HEAD requests.
+
+2000-08-26  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl (create_page): Add --style option which allows a
+	link to a CSS file to be included in each Checkbot page.
+
+2000-08-20  Nick Hibma <n_hibma@qubesoft.com>
+
+	* checkbot.pl (check_external): Some servers don't set the Server:
+	header. Check to see if the server field is set in a response to
+	avoid warnings.
+
+	* checkbot.pl (add_checked): Add --enable-virtual option to use
+	hostname instead of IP address to distinguish servers. This allows
+	checking of multiple virtual servers.
+
+2000-08-13  Hans de Graaff  <hans@degraaff.org>
+
+	* Makefile.PL: Add a check for HTML::Parser. Require latest
+	version, 3.10, because I'm not sure older versions work correctly.
+
 2000-06-29  Hans de Graaff  <hans@degraaff.org>
 
 	* Checkbot 1.61 released
