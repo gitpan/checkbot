@@ -57,3 +57,16 @@
    matching this option will still be checked (the links on these pages
    will really be excluded). Maybe add a new option to really ignore
    options? Or just redo current options.
+
+*  Add an option to count hops instead of using match, and only hop
+   that many links away? Suggested for single page checking, but might
+   be useful on a larger scale as well?
+
+*  Sort problems on the server page in a different order
+   (e.g. critical errors first).
+
+*  Improve the reporting pages to be more clear about what is going
+   on, etc.
+
+*  Using IP address in reports can conflict with HTTP 1.1 virtual
+   hosting

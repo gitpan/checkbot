@@ -20,14 +20,14 @@ print OUT <<'!NO!SUBS!';
 #
 # checkbot - A perl5 script to check validity of links in www document trees
 #
-# Hans de Graaff <j.j.degraaff@twi.tudelft.nl>, 1994-1996.
+# Hans de Graaff <j.j.degraaff@acm.org>, 1994-1997.
 # Based on Dimitri Tischenko, Delft University of Technology, 1994
 # Based on the testlinks script by Roy Fielding
 # With contributions from Bruce Speyer <bruce.speyer@elecomm.com>
 #
 # Info-URL: http://dutifp.twi.tudelft.nl:8000/checkbot/
 #
-# $Id: checkbot.pl,v 1.46 1996/12/30 15:27:11 graaff Exp $
+# $Id: checkbot.pl,v 1.50 1997/04/28 07:10:26 graaff Exp $
 # (Log information can be found at the end of the script)
 
 require 5.001;
@@ -48,6 +48,7 @@ checkbot [B<--debug>] [B<--help>] [B<--verbose>] [B<--url> start URL]
          [B<--ignore> ignore string] [B<-file> file name] 
          [B<--mailto> email address]
          [B<--note> note] [B<--sleep> seconds] [B<--timeout> timeout]
+         [B<--interval> seconds]
          [start URLs]
 
 =head1 DESCRIPTION
@@ -139,6 +140,12 @@ Number of I<seconds> to sleep in between requests. Default is 2 seconds.
 Default timeout for the requests, specified in seconds. The default is
 2 minutes.
 
+=item --interval <seconds>
+
+The maximum interval between updates in seconds. Default is 3 hours
+(10800 seconds). Checkbot will start the intervale at one minute, and
+gradually extend it towards the maximum interval.
+
 =item --file <file name>
 
 Write the summary pages into file I<file name>. Default is C<checkbot.html>.
@@ -155,8 +162,13 @@ Hans de Graaff <J.J.deGraaff@twi.tudelft.nl>
 use AnyDBM_File;
 @AnyDBM_File::ISA = qw(DB_File GDBM_File NDBM_File);
 
+# Declare some global variables, avoids ugly use of main:: all around
+my @starturls = ();
+
+
 # Version information
-($main::VERSION) = sprintf("%d.%02d", q$Revision: 1.46 $ =~ /(\d+)\.(\d+)/);
+my $VERSION;
+( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.50 $ =~ /(\d+)\.(\d+)/);
 
 &check_options();
 &init_modules();
@@ -185,7 +197,7 @@ sub check_options {
 
   # Get command-line arguments
   use Getopt::Long;
-  my $result = GetOptions(qw(debug help verbose url=s match=s exclude|x=s file=s ignore|z=s mailto|M=s note|N=s proxy=s sleep=i timeout=i));
+  my $result = GetOptions(qw(debug help verbose url=s match=s exclude|x=s file=s ignore|z=s mailto|M=s note|N=s proxy=s sleep=i timeout=i interval=i));
 
   # Handle arguments, some are mandatory, some have defaults
   &print_help if (($main::opt_help && $main::opt_help) 
@@ -193,14 +205,9 @@ sub check_options {
   $main::opt_timeout = 120 unless defined($main::opt_timeout) && length($main::opt_timeout);
   $main::opt_verbose = 0 unless $main::opt_verbose;
   $main::opt_sleep = 2 unless defined($main::opt_sleep) && length($main::opt_sleep);
+  $main::opt_interval = 10800 unless defined $main::opt_interval and length $main::opt_interval;
   # The default for opt_match will be set later, because we might want
   # to muck with opt_url first.
-
-  # Work on the regular expressions in -m and -x: escape all 
-  # regular expression characters
-  $main::opt_exclude =~ s/([\.\/\\\+\?\~\@])/\\$1/g if defined($main::opt_exclude);
-  $main::opt_ignore =~ s/([\.\/\\\+\?\~\@])/\\$1/g if defined($main::opt_ignore);
-  $main::opt_match =~ s/([\.\/\\\+\?\~\@])/\\$1/g if defined($main::opt_match);
 
   # Display messages about the options
   print STDERR "*** Starting in verbose mode\n" if $main::opt_verbose;
@@ -215,7 +222,7 @@ sub init_modules {
   use HTML::Parse;
   use HTML::LinkExtor;
   $main::ua = new LWP::UserAgent;
-  $main::ua->agent("Checkbot/$main::VERSION LWP/" . LWP::Version);
+  $main::ua->agent("Checkbot/$VERSION LWP/" . LWP::Version);
   $main::ua->timeout($main::opt_timeout);
 
   # Don't use strict parsing, it is very likely we will
@@ -256,10 +263,18 @@ sub init_globals {
   unshift(@ARGV, $main::opt_url) if $main::opt_url;
   foreach (@ARGV) {
     $url = new URI::URL $_;
-    $url->host('localhost') if $url->scheme eq 'file';
-    $main::opt_match = $url unless defined $main::opt_match;
-    push(@main::starturls, $url);
+    if (! defined $url->scheme) {
+      warn "Start URL $url lacks a scheme and is ignored\n";
+    } else {
+      $url->host('localhost') if $url->scheme eq 'file';
+      if (!defined $main::opt_match) {
+        $main::opt_match = quotemeta $url;
+      }
+      push(@starturls, $url);
+    }
   }
+  die "There are no valid starting URLs to begin checking with!\n"
+    if scalar(@starturls) == -1;
 
   # Variables to keep track of number of links
   $main::LINKS = 0;
@@ -267,7 +282,7 @@ sub init_globals {
   $main::PROBL = 2;
   $main::TODO = 3;
 
-  @main::st_int = (0, 0, 0, 1);
+  @main::st_int = (0, 0, 0, scalar(@starturls));
   @main::st_ext = (0, 0, 0, 0);
 
   # We write out our status every now and then.
@@ -291,7 +306,7 @@ sub setup {
 
 
   # Prepare CURRENT queue with starting URLs
-  foreach (@main::starturls) {
+  foreach (@starturls) {
     print CURRENT $_->as_string . "|\n";
   }
   close CURRENT;
@@ -341,6 +356,10 @@ sub check_internal {
 	|| die "$0: Unable to open $main::cur_queue for reading: $!\n";
       open(QUEUE, ">$main::new_queue") 
 	|| die "$0: Unable to open $main::new_queue for writing: $!\n";
+
+      # This should not happen, but it might anyway,and we don't want
+      # to loop forever.
+      $main::st_int[$main::TODO] = 0 if -z $main::cur_queue;
     }
   }
   close CURRENT;
@@ -436,11 +455,14 @@ sub check_external {
   # the tally will actually be correct. Drawback: we might get into
   # memory problems more easily. Oh well, buy more, I suppose.
 
-  print STDERR "*** Reading and sorting external URLs\n";
+  print STDERR "*** Reading and sorting external URLs\n" 
+    if $main::opt_verbose;;
   open EXTERNAL, $main::extfile
     or die "$0: Unable to open $main::extfile for reading: $!\n";
   # Gobble!
   my @externals = sort <EXTERNAL>;
+
+  close EXTERNAL;
 
   $main::st_ext[$main::TODO] = $#externals;
   $main::st_ext[$main::DUPS] = $main::st_ext[$main::LINKS] - $main::st_ext[$main::TODO];
@@ -571,7 +593,7 @@ sub create_page {
     print OUT "<h2>Checkbot session parameters</h2>\n";
     print OUT "<table>\n";
     print OUT "<tr><th align=left>--url</th><td>Start URL(s)</td><td>",
-              join(',', @main::starturls), "</td></tr>\n";
+              join(',', @starturls), "</td></tr>\n";
     print OUT "<tr><th align=left>--match</th><td>Match regular expression</td><td>$main::opt_match</td></tr>\n";
     print OUT "<tr><th align=left>--exclude</th><td>Exclude regular expression</td><td>$main::opt_exclude</td></tr>\n" if defined $main::opt_exclude;
     print OUT "<tr><th align=left>--ignore</th><td>Ignore regular expression</td><td>$main::opt_ignore</td></tr>\n" if defined $main::opt_ignore;
@@ -740,7 +762,7 @@ sub print_server {
 
 # Return a string containing Checkbot's signature for HTML pages
 sub signature {
-  return "<hr>\nPage created by <a href=http://dutifp.twi.tudelft.nl:8000/checkbot/>Checkbot $main::VERSION</a> on <em>" . localtime() . "</em>.\n";
+  return "<hr>\nPage created by <a href=http://dutifp.twi.tudelft.nl:8000/checkbot/>Checkbot $VERSION</a> on <em>" . localtime() . "</em>.\n";
 }
 
 sub print_server_problems {
@@ -783,8 +805,8 @@ sub check_point {
 	 || ($main::opt_debug && $main::opt_verbose)) {
 	&create_page(0);
 	$main::cp_last = time();
-	$main::cp_int = $main::cp_int * 1.25
-          unless ($main::opt_debug or $main::cp_int > 3 * 3600);
+	$main::cp_int = $main::cp_int * 1.25 unless $main::opt_debug;
+        $main::cp_int = $main::cp_int > $main::opt_interval ? $main::opt_interval : $main::cp_int;
     }
 }
 
@@ -812,14 +834,14 @@ sub send_mail {
     $main::st_ext[$main::PROBL] / $main::st_ext[$main::LINKS] * 100;
   }
 
-  print $fh "\n\n-- \nCheckbot $main::VERSION\n";
+  print $fh "\n\n-- \nCheckbot $VERSION\n";
   print $fh "<URL:http://dutifp.twi.tudelft.nl:8000/checkbot/>\n";
 
   $fh->close;
 }
 
 sub print_help {
-  print "Checkbot $main::VERSION command line options:\n\n";
+  print "Checkbot $VERSION command line options:\n\n";
   print "  --debug            Debugging mode: No pauses, stop after 25 links.\n";
   print "  --verbose          Verbose mode: display many messages about progress.\n";
   print "  --url url          Start URL\n";
@@ -832,7 +854,7 @@ sub print_help {
   print "  --mailto address   Mail brief synopsis to address when done.\n";
   print "  --note note        Include Note (e.g. URL to report) along with Mail message.\n";
   print "  --proxy URL        URL of proxy server for external http and ftp requests.\n";
-  print "  --seconds seconds  Sleep for secs seconds between requests (default 2)\n";
+  print "  --sleep seconds    Sleep for secs seconds between requests (default 2)\n";
   print "  --timeout timeout  Timeout for http requests in seconds (default 120)\n\n";
   print "Options --match, --exclude, and --ignore can take a perl regular expression\nas their argument\n\n";
   print "Use 'perldoc checkbot' for more verbose documentation.\n\n";
@@ -891,6 +913,18 @@ sub byproblem {
 
 
 # $Log: checkbot.pl,v $
+# Revision 1.50  1997/04/28 07:10:26  graaff
+# Fixed small problem with VERSION
+#
+# Revision 1.49  1997/04/27 19:24:22  graaff
+# A bunch of smaller stuff
+#
+# Revision 1.48  1997/04/05 15:28:35  graaff
+# Small fixes
+#
+# Revision 1.47  1997/01/28 13:48:00  graaff
+# Protect against corrupted todo link count
+#
 # Revision 1.46  1996/12/30 15:27:11  graaff
 # Several bugs fixed and features added, see changelog
 #

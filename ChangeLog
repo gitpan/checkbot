@@ -1,3 +1,34 @@
+Mon Apr 28 09:08:29 1997  Hans de Graaff  <J.J.deGraaff@acm.org>
+
+	* checkbot.pl: Parsing VERSION is somewhat tricky. Fixed.
+
+Sun Apr 27 21:02:58 1997  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot.pl (check_external): Close EXTERNAL after use.
+
+Sun Apr 20 10:24:09 1997  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot.pl: Fixed a number of small bugs reported by Jost Krieger.
+	Regular expressions can now be used with the options.
+	Added --interval option to denote maximum interval between updates.
+
+Sat Apr  5 17:03:46 1997  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot.pl (init_globals): Added checks for URLs without a scheme.
+
+Fri Mar 14 11:17:21 1997  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot.pl (print_help): Fix typo.
+
+Tue Jan 14 16:51:36 1997  Hans de Graaff  <J.J.deGraaff@twi.tudelft.nl>
+
+	* checkbot.pl (check_internal): Check whether there are really
+	entries in the new queue when changing queues.
+
+Sat Jan  4 14:26:04 1997  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
+
+	* checkbot.pl (print_help): --seconds should be --sleep in help.
+
 Mon Dec 30 12:03:14 1996  Hans de Graaff  <Hans.deGraaff@twi72.twi.tudelft.nl>
 
 	* checkbot.pl (handle_url): If a URL is exclude'd, only use HEAD
