@@ -1,13 +1,96 @@
-1998-10-10  Hans de Graaff  <Hans de Graaff <graaff@xs4all.nl>>
+1999-05-03  Hans de Graaff  <Hans de Graaff <graaff@xs4all.nl>>
+
+	* checkbot.pl (printServerWarnings): Also change clustering of URLs.
+
+1999-05-02  Hans de Graaff <graaff@xs4all.nl>
+
+	* checkbot.pl (signature): Add quotes around the URL in the
+	signature.
+	(printServerProblems): Fixed clustering of URLs so that faulty
+	links are listed under the URL that contains them, instead of the
+	other way around. This ordering problem was introduced in 1.53.
+
+1999-04-10  Hans de Graaff  <graaff@xs4all.nl>
+
+	* checkbot.pl (handle_url): Make sure a redirected URL is fully
+	qualified (based on the original URL) to avoid dying on it
+	later. Thanks to David Hoekman for the initial analysis.
+
+1999-04-05  Hans de Graaff <graaff@xs4all.nl>
+
+	* checkbot.pl (printAllServers): Taken out of create_page for
+	clarity.
+	(printServerWarnings): Keep warning headers from being printed for 
+	each warning.
+
+1999-03-15  Hans de Graaff  <graaff@xs4all.nl>
+
+	* README: Explain which Perl modules are needed.
+
+1999-02-20  Hans de Graaff  <graaff@xs4all.nl>
+
+	* checkbot.pl (printServerWarnings): Fix printing of warnings so
+	that headers are only printed once.
+	(print_server): get correct IP address for web servers with
+	non-standard port numbers.
+
+1999-02-08  Hans de Graaff  <graaff@xs4all.nl>
+
+	* Makefile.PL (chk_version): Added location of Mail::Send.
+
+1999-01-18  Hans de Graaff  <graaff@xs4all.nl>
+
+	* checkbot.pl (count_problems): Change counting of problems to
+	deal with new structure.
+
+1999-01-17  Hans de Graaff  <graaff@xs4all.nl>
+
+	* checkbot.pl (printServerProblems): Changed to accomodate new
+ 	inventory of problem response. This new method allow multiple bad
+ 	links to one URL be all reported all at once. Also use
+ 	standardized response descriptions based on a patch by Benjamin
+ 	Franz <snowhare@nihongo.org>.
+
+1999-01-10  Hans de Graaff  <graaff@xs4all.nl>
+
+	* checkbot.pl (byReferringPage): Added to allow sorting of
+	problems by referer.
+	(byProblem): Removed code to compare by exact message and
+	referer.
+	Removed the pre-amble to generate correct perl path because it is
+	a bit too cumbersome during development.
+
+1998-12-31  Hans de Graaff  <graaff@xs4all.nl>
+
+	* checkbot.pl (handle_url): Do a HEAD request when the guessed
+ 	content-type matches application/octet-stream to get the real
+ 	content-type from the server.
+
+1998-12-27  Hans de Graaff <graaff@xs4all.nl>
+
+	* checkbot.pl (handle_doc): Added warning for HTTP URLs without a
+	fully-qualified hostname.
+
+	* checkbot.pl (printServerWarnings): Added a mechanism to also
+ 	display checkbot warnings, unrelated to the HTTP responses, on the
+ 	results pages.
+
+1998-10-24  Hans de Graaff <graaff@xs4all.nl>
+
+	* checkbot.pl (setup): Explicitly set record separator $/
+	This appears needed for perl 5.005, and fixes a problem
+	where no URLs would appear to match except the first few.
+
+1998-10-10  Hans de Graaff  <graaff@xs4all.nl>
 
 	* checkbot.pl: Made POD conform to new scripts format better.
 
-1998-06-21  Hans de Graaff  <Hans de Graaff <graaff@xs4all.nl>>
+1998-06-21  Hans de Graaff  <graaff@xs4all.nl>
 
-	* checkbot.pl (init_modules): HTML/Parse is no longer needed,
+	* checkbot.pl (init_modules): HTML::Parse is no longer needed,
 	removed.
 
-Sat Sep  6 16:00:12 1997  Hans de Graaff  <Hans de Graaff <graaff@xs4all.nl>>
+Sat Sep  6 16:00:12 1997  Hans de Graaff  <graaff@xs4all.nl>
 
 	* checkbot 1.51 released
 

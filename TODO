@@ -22,8 +22,6 @@
 *  Retry time-out problem links after checking all other links to
    better deal with transient problems. See above as well.
 
-*  Add problem links such as the 500's series together.
-
 *  Parse client-side (and server-side) MAP's if possible.
 
 *  Maybe use a Netscape feature to open problem links in a new
@@ -44,15 +42,6 @@
 *  Keep an internal list of hosts to which we cannot connect, so that
    we avoid being stalled a while for each link to that host.
 
-*  Report all pages to point to a particular broken link. Most of this
-   information is already availabe, but discarded when writing the
-   report pages. Should probably change the internal structure a bit
-   to get this working properly.
-
-*  Rewrite report generation. Currently the whole error list each
-   parsed for each host for which we write a file. This can become
-   very time-consuming!
-
 *  The exclude option is somewhat confusing, in that the links
    matching this option will still be checked (the links on these pages
    will really be excluded). Maybe add a new option to really ignore
@@ -70,4 +59,10 @@
    on, etc.
 
 *  Using IP address in reports can conflict with HTTP 1.1 virtual
-   hosting
+   hosting. Also, in the current situation several reports will be
+   generated when a server has several names for the same IP address,
+   or when the same content is served through two web servers. The
+   latter situation could be solved by adding an option which would
+   indicate these are actually the same:
+   www1.domain=www2.domain=www3.domain. 
+

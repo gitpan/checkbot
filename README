@@ -24,6 +24,13 @@ Making and installing Checkbot is easy:
     make
     make install
 
+You will need to have the following Perl modules installed in order to 
+properly install Checkbot:
+
+    LWP
+    Net::FTP (contained in the libnet package)
+    Mail::Send (optional, contained in the MailTools package)
+
 Problems, etc. can be reported to checkbot@graaff.xs4all.nl
 
 Hans de Graaff <graaff@xs4all.nl>
