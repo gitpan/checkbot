@@ -28,7 +28,7 @@ print OUT <<'!NO!SUBS!';
 #
 # Info-URL: http://www.xs4all.nl/~graaff/checkbot/
 #
-# $Id: checkbot.pl,v 1.56 1999/07/31 14:52:17 graaff Exp $
+# $Id: checkbot.pl,v 1.57 1999/10/24 16:11:00 graaff Exp $
 # (Log information can be found at the end of the script)
 
 require 5.001;
@@ -183,7 +183,7 @@ my %problems = ();
 
 # Version information
 my $VERSION;
-( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.56 $ =~ /(\d+)\.(\d+)/);
+( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.57 $ =~ /(\d+)\.(\d+)/);
 
 &check_options();
 &init_modules();
@@ -231,6 +231,7 @@ sub check_options {
 
 sub init_modules {
 
+  use URI;
   # Prepare the user agent to be used:
   use LWP::UserAgent;
   use LWP::MediaTypes;
@@ -258,7 +259,7 @@ sub init_globals {
   # Directory and files for output
   if ($main::opt_file) {
     $main::file = $main::opt_file;
-    $main::file =~ /([^\.]+)\./;
+    $main::file =~ /(.*)\./;
     $main::server_prefix = $1;
   } else { 
     $main::file = "checkbot.html";
@@ -970,7 +971,8 @@ sub print_help {
   print "  --note note        Include Note (e.g. URL to report) along with Mail message.\n";
   print "  --proxy URL        URL of proxy server for external http and ftp requests.\n";
   print "  --sleep seconds    Sleep for secs seconds between requests (default 2)\n";
-  print "  --timeout timeout  Timeout for http requests in seconds (default 120)\n\n";
+  print "  --timeout seconds  Timeout for http requests in seconds (default 120)\n";
+  print "  --interval seconds Maximum time interval between updates (default 10800)\n\n";
   print "Options --match, --exclude, and --ignore can take a perl regular expression\nas their argument\n\n";
   print "Use 'perldoc checkbot' for more verbose documentation.\n\n";
   print "Checkbot WWW page     : http://www.xs4all.nl/~graaff/checkbot/\n";
@@ -1014,6 +1016,9 @@ sub count_problems {
 
 
 # $Log: checkbot.pl,v $
+# Revision 1.57  1999/10/24 16:11:00  graaff
+# Added URI check.
+#
 # Revision 1.56  1999/07/31 14:52:17  graaff
 # Fixed redirection URL's, deal with new URI way of handling
 # hostname-less URI's.

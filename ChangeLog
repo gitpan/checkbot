@@ -1,4 +1,21 @@
-1999-07-17  Hans de Graaff  <Hans de Graaff <graaff@xs4all.nl>>
+1999-10-24  Hans de Graaff  <Hans de Graaff <graaff@xs4all.nl>>
+
+	* checkbot.pl (print_help): Added line on --interval option.
+
+1999-10-23  Hans de Graaff  <graaff@xs4all.nl>
+
+	* checkbot.pl (init_globals): Fixed proper determination of server
+	prefix if a filename is supplied, thanks to Michael Baumer.
+
+1999-10-02  Hans de Graaff  <graaff@xs4all.nl>
+
+	* checkbot.pl (init_modules): Added use URI.
+
+1999-08-21  Hans de Graaff  <graaff@xs4all.nl>
+
+	* Makefile.PL (chk_version): Added check for URI.
+
+1999-07-17  Hans de Graaff  <graaff@xs4all.nl>
 
 	* README: Added blurb on the announcements mailing list.
 

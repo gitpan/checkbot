@@ -1,5 +1,5 @@
 # This -*- perl -*- script makes the Makefile
-# $Id: Makefile.PL,v 1.3 1999/05/09 14:28:57 graaff Exp $
+# $Id: Makefile.PL,v 1.4 1999/10/24 16:10:29 graaff Exp $
 
 require 5.002;
 use ExtUtils::MakeMaker;
@@ -26,6 +26,9 @@ sub chk_version
 # Check for proper version of LWP
 chk_version('LWP' => '5.02') or
   die "*** Checkbot requires LWP 5.02 or later in order to work properly\n";
+
+chk_version('URI' => '1.03') or
+  die "*** Checkbot requires URI 1.03 or later in order to work properly\n";
 
 # FTP should have been checked by LWP, but check anyway
 chk_version('Net::FTP' => '2.00') or
