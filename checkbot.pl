@@ -29,7 +29,7 @@ print OUT <<'!NO!SUBS!';
 # Info-URL: http://degraaff.org/checkbot/
 # Comments to: checkbot@degraaff.org
 #
-# $Id: checkbot.pl,v 1.63 2001/01/14 15:25:52 graaff Exp $
+# $Id: checkbot.pl,v 1.64 2001/04/15 19:34:30 graaff Exp $
 # (Log information can be found at the end of the script)
 
 require 5.004;
@@ -222,7 +222,7 @@ my %problems = ();
 
 # Version information
 my $VERSION;
-( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.63 $ =~ /(\d+)\.(\d+)/);
+( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.64 $ =~ /(\d+)\.(\d+)/);
 
 # If on a Mac we should ask for the arguments through some MacPerl stuff
 if ($^O eq 'MacOS') {
@@ -319,7 +319,7 @@ sub init_globals {
     $main::file = "checkbot.html";
     $main::server_prefix = "checkbot";
   }
-  $main::tmpdir = ($ENV{'TMPDIR'} or "/tmp") . "/Checkbot.$$";
+  $main::tmpdir = ($ENV{'TMPDIR'} or $ENV{'TMP'} or $ENV{'TEMP'} or "/tmp") . "/Checkbot.$$";
 
   $main::cur_queue  = $main::tmpdir . "/queue";
   $main::new_queue  = $main::tmpdir . "/queue-new";
@@ -532,7 +532,7 @@ sub handle_url {
 	    print STDERR "         Redirected to " . $redir_url . "\n" if $main::opt_verbose;
 	    add_to_queue($redir_url, $urlparent);
 	  } else {
-	    print STDERR "         Location header missing from redirect response.\n" if $main::verbose;
+	    print STDERR "         Location header missing from redirect response.\n" if $main::opt_verbose;
 	  }
 	}
       }
@@ -603,7 +603,7 @@ sub check_external {
     
     my $url = new URI::URL $newurl, $urlparent;
 
-    if ($url->scheme =~ /^(http|ftp|gopher|nntp)$/o) { 
+    if ($url->scheme =~ /^(http|file|ftp|gopher|nntp)$/o) { 
 
       # Normally, we would only need to do a HEAD, but given the way
       # LWP handles gopher requests, we need to do a GET on those to
@@ -771,7 +771,7 @@ sub create_page {
   }
 
     print OUT "</table>\n\n";
-    
+
     # Server information
     printAllServers($final_page);
 
@@ -1062,8 +1062,6 @@ sub printServerWarnings {
   my $separator = "<hr>\n";
 
   foreach $warningType (sort keys %warning) {
-    print SERVER "<h4>$warningType</h4>\n<dl>\n" unless $oldWarningType eq $warningType;
-    $oldWarningType = $warningType;
     my %thisServerList = ();
 
     foreach $url (sort keys %{$warning{$warningType}}) {
@@ -1113,21 +1111,22 @@ sub send_mail {
 
   my $fh = $msg->open;
 
-  print $fh "Checkbot results for $main::opt_url are available.\n\n";
+  print $fh "$sub.\n\n";
   print $fh "User-supplied note: $main::opt_note\n\n"
     if defined $main::opt_note;
 
   print $fh "A brief summary of the results follows:\n\n";
-  printf $fh "Internal: %6d total, %6d unique, %6d problems, ratio = %3d%%\n",
-  $main::st_int[$main::LINKS] + $main::st_int[$main::DUPS],
-  $main::st_int[$main::LINKS], $main::st_int[$main::PROBL],
-  $main::st_int[$main::PROBL] / $main::st_int[$main::LINKS] * 100;
+  my $line = sprintf "Internal: %6d total, %6d unique, %6d problems, ratio = %3d%%\n",
+    $main::st_int[$main::LINKS] + $main::st_int[$main::DUPS],
+    $main::st_int[$main::LINKS], $main::st_int[$main::PROBL],
+    $main::st_int[$main::PROBL] / $main::st_int[$main::LINKS] * 100;
   if ($main::st_ext[$main::LINKS] > 0) {
-    printf $fh "External: %6d total, %6d unique, %6d problems, ratio = %3d%%\n",
-    $main::st_ext[$main::LINKS] + $main::st_ext[$main::DUPS],
-    $main::st_ext[$main::LINKS], $main::st_ext[$main::PROBL],
-    $main::st_ext[$main::PROBL] / $main::st_ext[$main::LINKS] * 100;
+    $line .= sprintf "External: %6d total, %6d unique, %6d problems, ratio = %3d%%\n",
+      $main::st_ext[$main::LINKS] + $main::st_ext[$main::DUPS],
+      $main::st_ext[$main::LINKS], $main::st_ext[$main::PROBL],
+      $main::st_ext[$main::PROBL] / $main::st_ext[$main::LINKS] * 100;
   }
+  print $fh $line;
 
   print $fh "\n\n-- \nCheckbot $VERSION\n";
   print $fh "<URL:http://degraaff.org/checkbot/>\n";
@@ -1199,6 +1198,11 @@ sub count_problems {
 
 
 # $Log: checkbot.pl,v $
+# Revision 1.64  2001/04/15 19:34:30  graaff
+# Fix printing of starting URLs in email, removed duplicate header in
+# report, try more environment variables to set temporary directory,
+# avoid using printf on pipes, and fix silly typo.
+#
 # Revision 1.63  2001/01/14 15:25:52  graaff
 #  * Require LWP 5.50. A bug fix was introduced in LWP 5.49 which solves
 #    problems with relative Location: headers for Checkbot.

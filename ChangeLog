@@ -1,3 +1,26 @@
+2001-04-15  Hans de Graaff  <hans@degraaff.org>
+
+	* Checkbot 1.64 released
+
+2001-03-13  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl (send_mail): Fix printing of starting URL in email.
+
+2001-03-04  Nick Hibma <n_hibma@qubesoft.com>
+
+	* checkbot.pl (printServerWarnings): Removed duplicate print statement.
+
+2001-02-10  Boris Lantrewitz <lantrewi@do.isst.fhg.de>
+
+	* checkbot.pl (init_globals): Allow more environment variables to
+	be used to set the temporary directory.
+	(send_mail): Avoid using printf to the handle for those systems
+	where printf on a pipe is not implemented.
+
+2001-01-14  Hans de Graaff  <hans@degraaff.org>
+
+	* Checkbot 1.63 released
+
 2001-01-02  Hans de Graaff  <hans@degraaff.org>
 
 	* Makefile.PL (chk_version): Require LWP 5.50, which contains an

@@ -55,6 +55,9 @@
    be useful on a larger scale as well? Yes, for instance against
    serves that create recursive symlinks by accident.
 
+   This option could be further specialized to apply to specific match
+   rules.
+
 *  Sort problems on the server page in a different order
    (e.g. critical errors first). 
 
@@ -83,7 +86,23 @@
 
 *  Proxy is a bit of a mess, I should look in to this and clean it up.
 
-*  Setting timeout on the useragent doesn't always make URLs time out.
+*  Setting timeout on the useragent doesn't always make URLs time
+   out. Leon Abelman points to the FAQ and suggest either an extra
+   option, or dealing with the timeout ourselves.
+
+   http://people.we.mediaone.net/kfrankel/lwpfaq.txt
+
+   21) I set the $ua->timeout() to 1 minute, but LWP might still uses
+   a long time to fetch a document.  Is this a bug?  
+
+   No, $ua->timeout sets a timeout on how long LWP allows the
+   connection to be idle before giving up.  If only a single byte
+   arrives each 50 seconds, LWP will keep on listening but will
+   probably not finish downloading for a long, long time.  If you want
+   an absolute timeout you can do it with alarm() or by setting up a
+   callback and measuring the time yourself.  Take a look at
+   preceeding two questions.  (Gisle Aas)
+
 
 *  Sometimes it is difficult (for the Web-editors) to locate the
    source of problems links, especially when the URL's is extracted
@@ -92,3 +111,21 @@
    href="..."> and </a>) in the Checkbot output.
 
 *  Only send a report by email when there is something to report?
+
+*  I am wondering if you could implement some kind of parallelism in
+   checking the links (e.g. checking a definable number of links in
+   parallel, speeding things up). Especially external links sometimes
+   take a long time to check. It would be nice if that could be sped
+   up by spawning several HTTP requests in parallel. -- Thomas
+   Sch‹rger <>
+
+*  Also check local links: I tried your checkbot, and like to thank
+   you very much for this nice tool - despite the fact that I needes
+   something which checks local references (<a name="..."> / <a
+   href="...#...">) as well :-( -- Michael Hoennig
+
+*  Have --sleep parameter accept split second times, and implement
+   timers to handle this internally. Would be useful to not stress the
+   server too much, but still have a speedy run. -- Thomas Kuerten
+   <thomas@noc.de>
+
