@@ -1,3 +1,32 @@
+2001-11-16  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl: Add example for --match argument based on question
+	by Michael Lambert.
+
+2001-11-11  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl (count_problems): Quote meta characters in server
+	name and URL when matching them.
+	(handle_doc): Fix two minor bugs related to the move to URI.
+
+2001-11-11  Evaldas Imbrasas  <evaldas@wolfram.com>
+
+	* checkbot.pl: Add --language option to allow language
+	negotiation.
+
+	* checkbot.pl (check_options): Set default for --sleep option to 0.
+
+	* checkbot.pl (check_internal): Only close <CURRENT> if it already
+	exists.
+	
+2001-11-03  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl (printServerProblems): There might not be a response
+	message.
+	(handle_url): Use status_line instead of code and message for
+	HTTP::Response object.
+	(handle_doc): Also check external gopher links.
+
 2001-10-25  Hans de Graaff  <hans@degraaff.org>
 
 	* Checkbot 1.66 released

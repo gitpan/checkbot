@@ -29,7 +29,7 @@ print OUT <<'!NO!SUBS!';
 # Info-URL: http://degraaff.org/checkbot/
 # Comments to: checkbot@degraaff.org
 #
-# $Id: checkbot.pl,v 1.66 2001/10/25 19:46:42 graaff Exp $
+# $Id: checkbot.pl,v 1.67 2001/12/16 16:15:55 graaff Exp $
 # (Log information can be found at the end of the script)
 
 require 5.004;
@@ -54,6 +54,7 @@ checkbot [B<--debug>] [B<--help>] [B<--verbose>] [B<--url> start URL]
          [B<--note> note] [B<--sleep> seconds] [B<--timeout> timeout]
          [B<--interval> seconds] [B<--dontwarn> HTTP responde codes]
          [B<--enable-virtual>]
+         [B<--language> language code]
          [start URLs]
 
 =head1 DESCRIPTION
@@ -89,6 +90,11 @@ If no explicit I<match string> is given, the first start URL (See
 option C<--url>) will be used as a match string instead.
 
 The I<match string> can be a perl regular expression.
+
+For example, to check the main server page and all HTML pages directly
+underneath it, but not the HTML pages in the subdirectories of the
+server, the I<match string> would be
+"www.someserver.xyz/($|[^/]+.html)".
 
 =item --exclude <exclude string>
 
@@ -147,7 +153,9 @@ some files around that otherwise would be deleted.
 
 =item --sleep <seconds>
 
-Number of I<seconds> to sleep in between requests. Default is 2 seconds. 
+Number of I<seconds> to sleep in between requests. Default is 0
+seconds. Setting this option can be useful to keep the load on the web
+server down while running Checkbot.
 
 =item --timeout <timeout>
 
@@ -187,6 +195,12 @@ checked once. When you want to check multiple virtual servers this
 causes problems, which this feature work around by using the hostname
 to distinguish the server.
 
+=item --language
+
+The argument for this option is a two-letter language code. Checkbot
+will use language negotiation to request files in that language. The
+default is to request English language (language code 'en').
+
 =back
 
 =head1 PREREQUISITES
@@ -222,7 +236,7 @@ my %problems = ();
 
 # Version information
 my $VERSION;
-( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.66 $ =~ /(\d+)\.(\d+)/);
+( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.67 $ =~ /(\d+)\.(\d+)/);
 
 # If on a Mac we should ask for the arguments through some MacPerl stuff
 if ($^O eq 'MacOS') {
@@ -262,17 +276,26 @@ sub check_options {
 
   # Get command-line arguments
   use Getopt::Long;
-  my $result = GetOptions(qw(debug help verbose url=s match=s exclude|x=s file=s style=s ignore|z=s mailto|M=s note|N=s proxy=s internal-only sleep=i timeout=i interval=i dontwarn=s enable-virtual));
+  my $result = GetOptions(qw(debug help verbose url=s match=s exclude|x=s file=s style=s ignore|z=s mailto|M=s note|N=s proxy=s internal-only sleep=i timeout=i interval=i dontwarn=s enable-virtual language=s));
 
   # Handle arguments, some are mandatory, some have defaults
   &print_help if (($main::opt_help && $main::opt_help) 
                   || (!$main::opt_url && $#ARGV == -1));
   $main::opt_timeout = 120 unless defined($main::opt_timeout) && length($main::opt_timeout);
   $main::opt_verbose = 0 unless $main::opt_verbose;
-  $main::opt_sleep = 2 unless defined($main::opt_sleep) && length($main::opt_sleep);
+  $main::opt_sleep = 0 unless defined($main::opt_sleep) && length($main::opt_sleep);
   $main::opt_interval = 10800 unless defined $main::opt_interval and length $main::opt_interval;
   $main::opt_dontwarn = "xxx" unless defined $main::opt_dontwarn and length $main::opt_dontwarn;
   $main::opt_enable_virtual = 0 unless defined $main::opt_enable_virtual;
+  # Set the default language and make sure it is a two letter, lowercase code
+  $main::opt_language = 'en' unless defined $main::opt_language;
+  $main::opt_language = lc(substr($main::opt_language, 0, 2));
+  $main::opt_language =~ tr/a-z//cd;
+  if ($main::opt_language !~ /[a-z][a-z]/) {
+    warn "Argument --language $main::opt_language is not a valid language code\nUsing English as a default.\n";
+    $main::opt_language = 'en';
+  }
+
   # The default for opt_match will be set later, because we might want
   # to muck with opt_url first.
 
@@ -440,7 +463,7 @@ sub check_internal {
     if ($main::st_int[$main::TODO]) {
       print STDERR "*** Moving queues around, $main::st_int[$main::TODO] to do\n" 
 	if $main::opt_verbose;
-      close CURRENT;
+      close CURRENT if defined(<CURRENT>);
       close QUEUE;
 
       # TODO: should check whether these succeed
@@ -495,7 +518,7 @@ sub handle_url {
 
     if ($type eq 'application/octet-stream'
 	or $url->scheme eq 'http' && $type ne 'text/html') {
-      $response = performRequest('HEAD', $url, $urlparent, $type);
+      $response = performRequest('HEAD', $url, $urlparent, $type, $main::opt_language);
       $type = $response->content_type;
     }
 
@@ -507,7 +530,7 @@ sub handle_url {
       $reqtype = 'HEAD';
     }
 
-    $response = performRequest($reqtype, $url, $urlparent, $type)
+    $response = performRequest($reqtype, $url, $urlparent, $type, $main::opt_language)
       unless defined($response) and $reqtype eq 'HEAD';
 
     if ($response->is_success) {
@@ -524,7 +547,7 @@ sub handle_url {
       if (defined $main::opt_ignore && $url =~ /$main::opt_ignore/o) {
 	print STDERR "Ignore  $url\n" if $main::opt_verbose;
       } else {
-	print STDERR "         ", $response->code, ' ', $response->message, "\n" 
+	print STDERR "         ", $response->status_line, "\n" 
 	  if $main::opt_verbose;
         push @{$problems{$response->code}{$url}}, $response unless $response->code =~ /$main::opt_dontwarn/o;
 	$main::st_int[$main::PROBL]++;
@@ -554,13 +577,19 @@ sub handle_url {
 }
 
 sub performRequest {
-  my ($reqtype, $url, $urlparent, $type) = @_;
+  my ($reqtype, $url, $urlparent, $type, $language) = @_;
 
   # Output what we are going to do with this link
   printf STDERR "    %4s %s (%s)\n", $reqtype, $url, $type
     if $main::opt_verbose;
-	
-  my $ref_header = new HTTP::Headers 'Referer' => $urlparent;
+
+  my %header_hash = (
+	'Referer'	=> $urlparent
+  );
+  if (defined($language) && ($language ne '')) {
+    $header_hash{'Accept-Language'} = $language;
+  }
+  my $ref_header = new HTTP::Headers(%header_hash);
   my $request = new HTTP::Request($reqtype, $url, $ref_header);
   my $response = $main::ua->simple_request($request);
 
@@ -613,14 +642,13 @@ sub check_external {
 
     if ($url->scheme =~ /^(http|file|ftp|gopher|nntp)$/o) { 
 
-      my $response = get_headers($url, $urlparent);
+      my $response = get_headers($url, $urlparent, $main::opt_language);
 
       if ($response->is_error || $response->is_redirect) {
 	if (defined $main::opt_ignore && $url =~ /$main::opt_ignore/o) {
 	  print STDERR "Ignore  $url error\n" if $main::opt_verbose;
 	} else {
-	  printf STDERR "          %d (%s)\n", $response->code,
-	  $response->message
+	  printf STDERR "          ", $response->status_line
 	    if $main::opt_verbose;
           push @{$problems{$response->code}{$url}}, $response unless $response->code =~ /$main::opt_dontwarn/o;
 	  $main::st_ext[$main::PROBL]++;
@@ -836,11 +864,11 @@ sub handle_doc {
       if ($url->scheme =~ /^(http|ftp)/) {
         if (! defined $url->host) {
           print STDERR "--> No host name found in URL: $url\n" if $main::opt_verbose;
-          $warning{'No host name found in URL'}{$url} .= $response->base->url . "\n";
+          $warning{'No host name found in URL'}{$url} .= $response->base->as_string . "\n";
           next;
         } elsif ($url->host !~ /\./) {
           print STDERR "--> Unqualified host name: $url\n" if $main::opt_verbose;
-          $warning{'Unqualified host name in URL'}{$url} .= $response->base->url . "\n";
+          $warning{'Unqualified host name in URL'}{$url} .= $response->base->as_string . "\n";
         }
       }
 
@@ -853,11 +881,11 @@ sub handle_doc {
 	}
       } else {
 	# Add this as an external link if we can check the protocol later
-	if ($url =~ /^(http|ftp):/o) {
+	if ($url =~ /^(http|ftp|gopher):/o) {
 	  print EXTERNAL $url . "|" . $response->base . "\n";
 	  $doc_ext++;
 	} else {
-	  print STDERR "--> Ignored: external URL is not HTTP or FTP: $url\n" if $main::opt_verbose;
+	  print STDERR "--> Ignored: external URL is not HTTP, FTP or gopher: $url\n" if $main::opt_verbose;
 	}
       }
     }
@@ -882,7 +910,7 @@ sub get_headers {
 
 # Set $ua->max_size(1) and then try a normal GET request.
 
-  my ($url, $urlparent) = @_;
+  my ($url, $urlparent, $language) = @_;
 
   # Normally, we would only need to do a HEAD, but given the way LWP
   # handles gopher requests, we need to do a GET on those to get at
@@ -908,7 +936,14 @@ sub get_headers {
 				   $main::servers_get_only{$url->authority} );
 
     print STDERR "     $reqtype $url\n" if $main::opt_verbose;
-    $ref_header = new HTTP::Headers 'Referer' => $urlparent;
+
+    my %header_hash = (
+	'Referer'	=> $urlparent
+    );
+    if (defined($language) && ($language ne '')) {
+      $header_hash{'Accept-Language'} = $language;
+    }
+    $ref_header = new HTTP::Headers(%header_hash);
     $request = new HTTP::Request($reqtype, $url, $ref_header);
     $response = $main::ua->simple_request($request);
 
@@ -1036,6 +1071,7 @@ sub signature {
 # and display them in a meaningful way.
 sub printServerProblems {
   my ($server) = @_;
+  $server = quotemeta $server;
 
   my $separator = "<hr>\n";
 
@@ -1059,7 +1095,9 @@ sub printServerProblems {
       foreach my $url (sort keys %{ $thisServerList{$parent} }) {
 	my $response = $thisServerList{$parent}{$url};
 	$urlOutput .= "<li><a href=\"$url\">$url</a><br>\n";
-	$urlOutput .= $response->message . "\n" if $response->message ne status_message($code);
+	$urlOutput .= $response->message . "\n"
+           if defined $response->message
+              and $response->message ne status_message($code);
       }
       if ($urlOutput ne '') {
 	$codeOutput .= "<dt><a href=\"$parent\">$parent</a>\n<dd>\n";
@@ -1174,11 +1212,12 @@ sub print_help {
   print "  --note note        Include Note (e.g. URL to report) along with Mail message.\n";
   print "  --proxy URL        URL of proxy server for external http and ftp requests.\n";
   print "  --internal-only    Only check internal links, skip checking external links.\n";
-  print "  --sleep seconds    Sleep for secs seconds between requests (default 2)\n";
+  print "  --sleep seconds    Sleep this many seconds between requests (default 0)\n";
   print "  --timeout seconds  Timeout for http requests in seconds (default 120)\n";
   print "  --interval seconds Maximum time interval between updates (default 10800)\n";
   print "  --dontwarn codes   Do not write warnings for these HTTP response codes\n";
   print "  --enable-virtual   Use only virtual names, not IP numbers for servers\n";
+  print "  --language         Specify 2-letter language code for language negotiation\n";
   print "\n";
   print "Options --match, --exclude, and --ignore can take a perl regular expression\nas their argument\n\n";
   print "Use 'perldoc checkbot' for more verbose documentation.\n\n";
@@ -1207,13 +1246,14 @@ sub ip_address {
 
 sub count_problems {
   my ($server) = @_;
+  $server = quotemeta $server;
   my $count = 0;
 
   foreach my $code (sort keys %problems) {
     foreach my $url (sort keys %{ $problems{$code}}) {
       foreach my $response (@{ $problems{$code}{$url} }) {
 	my $parent = URI->new($response->request->header('Referer'));
-	$count++ if $parent =~ $server;
+	$count++ if $parent =~ m/$server/;
       }
     }
   }
@@ -1223,6 +1263,12 @@ sub count_problems {
 
 
 # $Log: checkbot.pl,v $
+# Revision 1.67  2001/12/16 16:15:55  graaff
+#  * A --language option to ask the server for pages in other languages
+#  * Bug fixes related to URI package and non-standard server names
+#  * Some other minor bugfixes detailed in the ChangeLog
+#  * Added example for use of the --match argument
+#
 # Revision 1.66  2001/10/25 19:46:42  graaff
 # Fixed two bugs introduced in 1.65 related to using URI.
 #
