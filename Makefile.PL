@@ -1,5 +1,5 @@
 # This -*- perl -*- script makes the Makefile
-# $Id: Makefile.PL,v 1.7 2000/09/24 13:45:04 graaff Exp $
+# $Id: Makefile.PL,v 1.8 2001/01/14 15:26:46 graaff Exp $
 
 require 5.004;
 use ExtUtils::MakeMaker;
@@ -24,8 +24,8 @@ sub chk_version
 }
 
 # Check for proper version of LWP
-chk_version('LWP' => '5.02') or
-  die "*** Checkbot requires LWP 5.02 or later in order to work properly\n";
+chk_version('LWP' => '5.50') or
+  die "*** Checkbot requires LWP 5.50 or later in order to work properly\n";
 
 chk_version('URI' => '1.07') or
   die "*** Checkbot requires URI 1.07 or later in order to work properly\n";

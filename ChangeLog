@@ -1,3 +1,60 @@
+2001-01-02  Hans de Graaff  <hans@degraaff.org>
+
+	* Makefile.PL (chk_version): Require LWP 5.50, which contains an
+	important bugfix when dealing with relative redirects.
+
+2001-01-01  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl (init_globals): If no --match is given, construct
+	one based on all the start URLs given. Suggested by Mathieu
+	Guillaume.
+
+2000-12-31  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl (create_page): Remove the .bak file when the new
+	file is written, unless --debug is in effect.
+
+2000-12-31  OBARA Kiyotake <obara@vc-net.ne.jp>
+
+	* checkbot.pl (print_server): Create correct URLs when --file
+	argument contains directories as well as a filename.
+
+2000-12-31  David Brownlee <abs@purplei.com>
+
+	* checkbot.pl (create_page): Fix typo in die message.
+
+2000-12-24  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl: Added a small blurb in the documentation about the
+	URLs Checkbot will find and check.
+
+2000-12-24  Petter Reinholdtsen <pere@hungry.com>
+
+	* checkbot.pl (handle_url): Deal with redirect responses without
+	Location header.
+
+2000-11-18  Roman Maeder  <maeder@mathconsult.ch>
+
+	* checkbot.pl (handle_url): Remove check which would not check
+	files named the same as the main report file. If you don't want
+	Checkbot to check its intermediate pages, use the --exclude
+	option.
+
+	* checkbot.pl (handle_url): Ask server for file type when
+	requesting http:// URLs to be on the safe side, as using
+	guess_media_type() is not always correct.
+
+2000-10-28  Nick Hibma  <n_hibma@qubesoft.com>
+
+	* checkbot.pl (check_external): Only print when --verbose is true.
+	(printServerProblems): Fix proper printing of <hr>.
+	(handle_doc): Include proper URL for report for unqualified URLs.
+
+2000-10-01  TAKAKU Masao  <masao@ulis.ac.jp>
+
+	* checkbot.pl (print_server): Make pages well-formed by inserting
+	<html> and <body> tags.
+
 2000-09-24  Hans de Graaff  <hans@degraaff.org>
 
 	* Checkbot 1.62 released
@@ -19,7 +76,7 @@
 	* checkbot.pl (create_page): Add --style option which allows a
 	link to a CSS file to be included in each Checkbot page.
 
-2000-08-20  Nick Hibma <n_hibma@qubesoft.com>
+2000-08-20  Nick Hibma  <n_hibma@qubesoft.com>
 
 	* checkbot.pl (check_external): Some servers don't set the Server:
 	header. Check to see if the server field is set in a response to

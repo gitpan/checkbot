@@ -90,3 +90,5 @@
    from a database (as we often do). Maybe it would be useful if
    Checkbot could (optionally) list the link text (the text between <a
    href="..."> and </a>) in the Checkbot output.
+
+*  Only send a report by email when there is something to report?

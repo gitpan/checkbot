@@ -21,7 +21,7 @@ print OUT <<'!NO!SUBS!';
 #
 # checkbot - A perl5 script to check validity of links in www document trees
 #
-# Hans de Graaff <hans@degraaff.org>, 1994-2000.
+# Hans de Graaff <hans@degraaff.org>, 1994-2001.
 # Based on Dimitri Tischenko, Delft University of Technology, 1994
 # Based on the testlinks script by Roy Fielding
 # With contributions from Bruce Speyer <bruce.speyer@elecomm.com>
@@ -29,13 +29,15 @@ print OUT <<'!NO!SUBS!';
 # Info-URL: http://degraaff.org/checkbot/
 # Comments to: checkbot@degraaff.org
 #
-# $Id: checkbot.pl,v 1.62 2000/09/24 13:51:46 graaff Exp $
+# $Id: checkbot.pl,v 1.63 2001/01/14 15:25:52 graaff Exp $
 # (Log information can be found at the end of the script)
 
 require 5.004;
 use strict;
 
 require LWP;
+
+use File::Basename;
 
 =head1 NAME
 
@@ -57,7 +59,11 @@ checkbot [B<--debug>] [B<--help>] [B<--verbose>] [B<--url> start URL]
 =head1 DESCRIPTION
 
 Checkbot verifies the links in a specific portion of the World Wide
-Web. It creates HTML pages with diagnostics. 
+Web. It creates HTML pages with diagnostics.
+
+Checkbot uses LWP to find URLs on pages and to check them. It supports
+the same schemes as LWP does, and find the same links that
+HTML::LinkExtor will find.
 
 Options for Checkbot are:
 
@@ -136,7 +142,8 @@ from the checks, etc.
 
 =item --debug
 
-Enable debugging mode. Not really supported anymore.
+Enable debugging mode. Not really supported anymore, but it will keep
+some files around that otherwise would be deleted.
 
 =item --sleep <seconds>
 
@@ -215,7 +222,7 @@ my %problems = ();
 
 # Version information
 my $VERSION;
-( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.62 $ =~ /(\d+)\.(\d+)/);
+( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.63 $ =~ /(\d+)\.(\d+)/);
 
 # If on a Mac we should ask for the arguments through some MacPerl stuff
 if ($^O eq 'MacOS') {
@@ -332,9 +339,6 @@ sub init_globals {
     # it becomes easy to check a single file.
     $url->scheme('file') unless defined $url->scheme;
     $url->host('localhost') if $url->scheme eq 'file';
-    if (!defined $main::opt_match) {
-      $main::opt_match = quotemeta $url;
-    }
     if (!defined $url->host) {
       warn "No host specified in URL $url, ignoring it.\n";
       next;
@@ -344,6 +348,16 @@ sub init_globals {
   die "There are no valid starting URLs to begin checking with!\n"
     if scalar(@starturls) == -1;
 
+  # Set the automatic matching expression to a concatenation of the starturls
+  if (!defined $main::opt_match) {
+    my @matchurls;
+    my $matchurl;
+    foreach $matchurl (@starturls) {
+      push(@matchurls, quotemeta $matchurl);
+    }
+    $main::opt_match = '(' . join('|', @matchurls) . ')';
+    print STDERR "--match defaults to $main::opt_match\n" if $main::opt_verbose;
+  }
   # Variables to keep track of number of links
   $main::LINKS = 0;
   $main::DUPS  = 1;
@@ -456,7 +470,6 @@ sub handle_url {
 	
   if (defined($url->scheme) 
       && $url->scheme =~ /^(http|file|ftp|gopher|nntp)$/o
-      && $url->path !~ /$main::file/
       && $url->path !~ /[=\?]/o ) {
     if ($url->path =~ /\/$/o || $url->path eq "") {
       $type = 'text/html';
@@ -464,10 +477,16 @@ sub handle_url {
       $type = guess_media_type($url->path);
     }
 
-    # If we are unsure about the type it could well be a special extension
-    # for e.g. on-the-fly HTML, or a script or some such. Should ask the
-    # server.
-    if ($type eq 'application/octet-stream') {
+    # If we are unsure about the type it could well be a special
+    # extension for e.g. on-the-fly HTML, or a script or some
+    # such. Should ask the server. We do this when we cannot determine
+    # what the type of file is, or when we request a file with the
+    # HTTP protocol and the type is not text/html. In these cases we
+    # can logically expect to get HTMl in return, so we ask the server
+    # to be sure.
+
+    if ($type eq 'application/octet-stream'
+	or $url->scheme eq 'http' && $type ne 'text/html') {
       $response = performRequest('HEAD', $url, $urlparent, $type);
       $type = $response->content_type;
     }
@@ -508,10 +527,13 @@ sub handle_url {
 	  print STDERR "        Multiple choices.\n" if $main::opt_verbose;
 	} else {
 	  my $baseURI = URI->new($url);
-	  my $redir_url = URI->new_abs($response->header('Location'), $baseURI);
-	  print STDERR "         Redirected to " . $redir_url . "\n" if $main::opt_verbose;
-	  
-	  add_to_queue($redir_url, $urlparent);
+	  if (defined $response->header('Location')) {
+	    my $redir_url = URI->new_abs($response->header('Location'), $baseURI);
+	    print STDERR "         Redirected to " . $redir_url . "\n" if $main::opt_verbose;
+	    add_to_queue($redir_url, $urlparent);
+	  } else {
+	    print STDERR "         Location header missing from redirect response.\n" if $main::verbose;
+	  }
 	}
       }
     }
@@ -667,9 +689,9 @@ sub check_external {
 
       if ($response->is_error || $response->is_redirect) {
 	if (defined $main::opt_ignore && $url =~ /$main::opt_ignore/o) {
-	  print STDERR "Ignore  $url error\n";
+	  print STDERR "Ignore  $url error\n" if $main::opt_verbose;
 	} else {
-	  printf STDERR "          %d (%s)\n", $response->code, 
+	  printf STDERR "          %d (%s)\n", $response->code,
 	  $response->message
 	    if $main::opt_verbose;
           push @{$problems{$response->code}{$url}}, $response unless $response->code =~ /$main::opt_dontwarn/o;
@@ -698,8 +720,8 @@ sub create_page {
     print STDERR "*** Start writing results page\n" if $main::opt_verbose;
 
     open(OUT, ">$main::file.new") 
-	|| die "$0: Unable to open $main::file.bak for writing:\n";
-    print OUT "<head>\n";
+	|| die "$0: Unable to open $main::file.new for writing:\n";
+    print OUT "<html><head>\n";
     if (!$final_page) {
       printf OUT "<META HTTP-EQUIV=\"Refresh\" CONTENT = %d>\n",
       int($main::cp_int * 60 / 2 - 5);
@@ -708,6 +730,7 @@ sub create_page {
     print OUT "<title>Checkbot report</title>\n";
     print OUT "<link rel=\"StyleSheet\" type=\"text/css\" href=\"$main::opt_style\">\n" if defined $main::opt_style;
     print OUT "</head>\n";
+    print OUT "<body>\n";
     print OUT "<h1><em>Checkbot</em>: main report</h1>\n";
 
     # Show the status of this checkbot session
@@ -774,6 +797,8 @@ sub create_page {
 
     rename($main::file, $main::file . ".bak");
     rename($main::file . ".new", $main::file);
+
+    unlink $main::file . ".bak" unless $main::opt_debug;
 
     print STDERR "*** Done writing result page\n" if $main::opt_verbose;
 }
@@ -883,11 +908,11 @@ sub handle_doc {
       if ($url->scheme =~ /^(http|ftp)/) {
         if (! defined $url->host) {
           print STDERR "--> No host name found in URL: $url\n" if $main::opt_verbose;
-          $warning{'No host name found in URL'}{$url} .= $url . "\n";
+          $warning{'No host name found in URL'}{$url} .= $response->base->url . "\n";
           next;
         } elsif ($url->host !~ /\./) {
           print STDERR "--> Unqualified host name: $url\n" if $main::opt_verbose;
-          $warning{'Unqualified host name in URL'}{$url} .= $url . "\n";
+          $warning{'Unqualified host name in URL'}{$url} .= $response->base->url . "\n";
         }
       }
 
@@ -939,7 +964,7 @@ sub print_server {
   $filename =~ s/:/-/o;
 
   print OUT "<tr> <td>";
-  print OUT "<a href=\"$filename\">" if $server_problem > 0;
+  print OUT "<a href=\"@{[ (fileparse($filename))[0] ]}\">" if $server_problem > 0;
   print OUT "$server";
   print OUT "</a>" if $server_problem > 0;
   print OUT "</td>";
@@ -958,7 +983,7 @@ sub print_server {
   # Create this server file
   open(SERVER, ">$filename")
     || die "Unable to open server file $filename for writing: $!";
-  print SERVER "<head>\n";
+  print SERVER "<html><head>\n";
   if (!$final_page) {
     printf SERVER "<META HTTP-EQUIV=\"Refresh\" CONTENT = %d>\n",
       int($main::cp_int * 60 / 2 - 5);
@@ -966,12 +991,9 @@ sub print_server {
   print SERVER "<link rel=\"StyleSheet\" type=\"text/css\" href=\"$main::opt_style\">\n" if defined $main::opt_style;
   print SERVER "<title>Checkbot: output for server $server</title></head>\n";
   print SERVER "<body><h2><em>Checkbot</em>: report for server <tt>$server</tt></h2>\n";
-  print SERVER "Go To: <a href=\"$main::file\">Main report page</a>.\n";
-  print SERVER "<hr>\n";
+  print SERVER "Go To: <a href=\"@{[ (fileparse($main::file))[0] ]}\">Main report page</a>.\n";
 
   printServerProblems($server, $final_page);
-
-  print SERVER "<hr>\n";
   printServerWarnings($server, $final_page);
 
   print SERVER "\n";
@@ -990,6 +1012,8 @@ sub signature {
 sub printServerProblems {
   my ($server) = @_;
 
+  my $separator = "<hr>\n";
+
   foreach my $code (sort keys %problems) {
     my $codeOutput = '';
     my %thisServerList = ();
@@ -1004,7 +1028,7 @@ sub printServerProblems {
 	$thisServerList{$parent}{$url} = $response;
       }
     }
-      
+
     foreach my $parent (sort keys %thisServerList) {
       my $urlOutput = '';
       foreach my $url (sort keys %{ $thisServerList{$parent} }) {
@@ -1019,6 +1043,8 @@ sub printServerProblems {
     }
 
     if ($codeOutput ne '') {
+      print SERVER $separator if $separator;
+      $separator = '';
       print SERVER "<h4>$code ", status_message($code), "</h4>\n";
       print SERVER "<dl>\n$codeOutput\n</dl>\n";
     }
@@ -1033,6 +1059,7 @@ sub printServerWarnings {
   my $oldWarningType = '';
   my $url;
   my $parent;
+  my $separator = "<hr>\n";
 
   foreach $warningType (sort keys %warning) {
     print SERVER "<h4>$warningType</h4>\n<dl>\n" unless $oldWarningType eq $warningType;
@@ -1048,6 +1075,13 @@ sub printServerWarnings {
 	}
       }
     }
+
+    next if ! keys %thisServerList;
+
+    print SERVER $separator if $separator;
+    $separator = '';
+    print SERVER "<h4>$warningType</h4>\n<dl>\n" unless $oldWarningType eq $warningType;
+    $oldWarningType = $warningType;
 
     foreach my $parent (sort keys %thisServerList) {
       print SERVER "<dt><a href=\"$parent\">$parent</a>\n<dd>\n";
@@ -1165,6 +1199,19 @@ sub count_problems {
 
 
 # $Log: checkbot.pl,v $
+# Revision 1.63  2001/01/14 15:25:52  graaff
+#  * Require LWP 5.50. A bug fix was introduced in LWP 5.49 which solves
+#    problems with relative Location: headers for Checkbot.
+#  * Create a defaults --match argument based on all the start URLs, not
+#    just the first one.
+#  * Remove .bak files when the new files are written correctly.
+#  * Create correct URLs when --file argument also contains directories.
+#  * Deal with redirects without a Location: header.
+#  * Don't exclude checkbot's own pages automagically.
+#  * Always ask server about file type for HTTP requests when uncertain.
+#  * Make output well-formed HTML.
+#  * Several typo's and other output fixes.
+#
 # Revision 1.62  2000/09/24 13:51:46  graaff
 # Checkbot 1.62.
 #
