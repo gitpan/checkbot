@@ -66,3 +66,5 @@
    indicate these are actually the same:
    www1.domain=www2.domain=www3.domain. 
 
+*  Retry pages that generate mysterious 500-series errors or 501 Not
+   Implemented errors with a GET command.

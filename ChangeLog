@@ -1,4 +1,19 @@
-1999-05-03  Hans de Graaff  <Hans de Graaff <graaff@xs4all.nl>>
+1999-07-17  Hans de Graaff  <Hans de Graaff <graaff@xs4all.nl>>
+
+	* README: Added blurb on the announcements mailing list.
+
+1999-07-06  Hans de Graaff  <graaff@xs4all.nl>
+
+	* checkbot.pl (add_checked): Deal with the fact that a mailto: URL 
+	has no host component. Thanks to John Croft for the report.
+
+1999-06-27  Hans de Graaff  <graaff@xs4all.nl>
+
+	* checkbot.pl (handle_url): Really fix relative redirection URLs
+	using the URI class. Thanks for Thomas Zander for the report and
+	reproducible failing URL.
+
+1999-05-03  Hans de Graaff  <graaff@xs4all.nl>
 
 	* checkbot.pl (printServerWarnings): Also change clustering of URLs.
 

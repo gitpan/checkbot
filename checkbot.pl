@@ -28,7 +28,7 @@ print OUT <<'!NO!SUBS!';
 #
 # Info-URL: http://www.xs4all.nl/~graaff/checkbot/
 #
-# $Id: checkbot.pl,v 1.55 1999/05/09 15:30:34 graaff Exp $
+# $Id: checkbot.pl,v 1.56 1999/07/31 14:52:17 graaff Exp $
 # (Log information can be found at the end of the script)
 
 require 5.001;
@@ -183,7 +183,7 @@ my %problems = ();
 
 # Version information
 my $VERSION;
-( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.55 $ =~ /(\d+)\.(\d+)/);
+( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.56 $ =~ /(\d+)\.(\d+)/);
 
 &check_options();
 &init_modules();
@@ -451,7 +451,8 @@ sub handle_url {
       }
 
       if ($response->is_redirect) {
-	my $redir_url = new URI::URL $response->header('Location'), $url;
+	my $baseURI = URI->new($url);
+	my $redir_url = URI->new_abs($response->header('Location'), $baseURI);
 	print STDERR "         Redirected to " . $redir_url . "\n" if $main::opt_verbose;
 
 	add_to_queue($redir_url, $urlparent);
@@ -697,8 +698,13 @@ sub add_checked {
 
   # Substitute hostname with IP-address. This keeps us from checking 
   # the same pages for each name of the server, wasting time & resources.
-  my $url = new URI::URL $urlstr;
-  $url->host(ip_address($url->host));
+  my $url = URI->new($urlstr);
+
+  # TODO: This should be fixed in a more sane way. Really the URI
+  # class should deal with stuff like this. Checkbot can't be expected
+  # to know which URI schemes do have a host component and which types
+  # don't.
+  $url->host(ip_address($url->host)) if $url->scheme =~ '^(http|ftp|gopher|https|ldap|news|nntp|pop|rlogin|snews|telnet)$';
   $urlstr = $url->as_string;
 
   if (defined $main::checked{$urlstr}) {
@@ -1008,6 +1014,10 @@ sub count_problems {
 
 
 # $Log: checkbot.pl,v $
+# Revision 1.56  1999/07/31 14:52:17  graaff
+# Fixed redirection URL's, deal with new URI way of handling
+# hostname-less URI's.
+#
 # Revision 1.55  1999/05/09 15:30:34  graaff
 # List broken links under the pages that contain them, instead of the
 # other way around, reverting back to the way things are in 1.53 and
