@@ -1,35 +1,19 @@
-use Config;
-use File::Basename qw(basename dirname);
-chdir(dirname($0));
-($file = basename($0)) =~ s/\.pl$//;
-$file =~ s/\.pl$//
-        if ($Config{'osname'} eq 'VMS' or
-            $Config{'osname'} eq 'OS2');  # "case-forgiving"
-open OUT,">$file" or die "Can't create $file: $!";
-chmod(0755, $file);
-print "Extracting $file (with variable substitutions)\n";
- 
-print OUT <<"!GROK!THIS!";
-$Config{'startperl'} -w
-    eval 'exec perl -S \$0 "\$@"'
-        if 0;
- 
-!GROK!THIS!
- 
-print OUT <<'!NO!SUBS!';
 #!/usr/bin/perl -w
 #
 # checkbot - A perl5 script to check validity of links in www document trees
 #
-# Hans de Graaff <hans@degraaff.org>, 1994-2001.
+# Hans de Graaff <hans@degraaff.org>, 1994-2002.
 # Based on Dimitri Tischenko, Delft University of Technology, 1994
 # Based on the testlinks script by Roy Fielding
 # With contributions from Bruce Speyer <bruce.speyer@elecomm.com>
 #
+# This application is free software; you can redistribute it and/or
+# modify it under the same terms as Perl itself.
+#
 # Info-URL: http://degraaff.org/checkbot/
 # Comments to: checkbot@degraaff.org
 #
-# $Id: checkbot.pl,v 1.68 2002/09/28 21:02:45 graaff Exp $
+# $Id: checkbot,v 1.69 2002/12/25 14:53:30 graaff Exp $
 # (Log information can be found at the end of the script)
 
 require 5.004;
@@ -87,8 +71,8 @@ the page local, retrieves it, and will check all the links contained
 on it. Otherwise the page is considered external and it is only
 checked with a HEAD request.
 
-If no explicit I<match string> is given, the first start URL (See
-option C<--url>) will be used as a match string instead.
+If no explicit I<match string> is given, the start URLs (See option
+C<--url>) will be used as a match string instead.
 
 The I<match string> can be a perl regular expression.
 
@@ -225,6 +209,19 @@ environment variable FTP_PASSIVE to 1. For example, using the bash
 shell: C<FTP_PASSIVE=1 checkbot ...>. See the Net::FTP documentation
 for more details.
 
+=item Run-away Checkbot 
+
+In some cases Checkbot literaly takes forever to finish. There are two
+common causes for this problem. First, there might be a database
+application as part of the website which generates a new page based on
+links on another page. Since Checkbot tries to travel through all
+links this will create an infinite number of pages. Second, a server
+configuration problem can causes a loop in generating URLs for pages
+that really do not exist. This will result in URLs of the form
+http://some.server/images/images/images/logo.png, with ever more
+'images' included. Checkbot cannot check for this because the server
+should have indicated that the requested pages do not exist.
+
 =back
 
 =head1 PREREQUISITES
@@ -260,7 +257,7 @@ my %problems = ();
 
 # Version information
 my $VERSION;
-( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.68 $ =~ /(\d+)\.(\d+)/);
+( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.69 $ =~ /(\d+)\.(\d+)/);
 
 # If on a Mac we should ask for the arguments through some MacPerl stuff
 if ($^O eq 'MacOS') {
@@ -416,7 +413,7 @@ sub init_globals {
     foreach $matchurl (@starturls) {
       push(@matchurls, quotemeta $matchurl);
     }
-    $main::opt_match = '(' . join('|', @matchurls) . ')';
+    $main::opt_match = '^(' . join('|', @matchurls) . ')';
     print STDERR "--match defaults to $main::opt_match\n" if $main::opt_verbose;
   }
   # Variables to keep track of number of links
@@ -679,7 +676,7 @@ sub check_external {
 	if (defined $main::opt_ignore && $url =~ /$main::opt_ignore/o) {
 	  print STDERR "Ignore  $url error\n" if $main::opt_verbose;
 	} else {
-	  printf STDERR "          ", $response->code, ' ', $response->status_line, "\n"
+	  print STDERR "          ", $response->status_line, "\n"
 	    if $main::opt_verbose;
           push @{$problems{$response->code}{$url}}, $response unless $response->code =~ /$main::opt_dontwarn/o;
 	  $main::st_ext[$main::PROBL]++;
@@ -843,12 +840,7 @@ sub add_checked {
     # the same pages for each name of the server, wasting time & resources.
     # Only do this if we are not dealing with virtual servers.
     my $url = URI->new($urlstr);
-
-    # TODO: This should be fixed in a more sane way. Really the URI
-    # class should deal with stuff like this. Checkbot can't be expected
-    # to know which URI schemes do have a host component and which types
-    # don't.
-    $url->host(ip_address($url->host)) if $url->scheme =~ /^(https?|ftp|gopher|https|ldap|news|nntp|pop|rlogin|snews|telnet)$/;
+    $url->host(ip_address($url->host)) if $url->can('host');
     $urlstr = $url->as_string;
   }
 
@@ -872,6 +864,10 @@ sub handle_doc {
   # valid, which might not always be true! This needs to be fixed, but
   # first let's try to find out why this stuff is sometimes not
   # valid...
+
+  # TODO: $response->base might not be the page we checked, so it is
+  # not the proper measurement to count the server hits. Conceivably
+  # the base might point to a different server altogether.
 
   # When we received the document we can add a notch to its server
   $main::servers{$response->base->authority}++;
@@ -897,7 +893,7 @@ sub handle_doc {
       next if $tag eq 'base';
 
       # Check whether URL has fully-qualified hostname
-      if ($url->scheme =~ /^(https?|ftp)$/) {
+      if ($url->can('host')) {
         if (! defined $url->host) {
           print STDERR "--> No host name found in URL: $url\n" if $main::opt_verbose;
           $warning{'No host name found in URL'}{$url} .= $response->base->as_string . "\n";
@@ -989,9 +985,9 @@ sub get_headers {
 
     if ($reqtype eq 'HEAD') {
 
-      # 405 and 501 are standard indications that HEAD shouldn't be used
-      if ($response->code =~ /^(405|501)$/o) {
-	print STDERR "Server doesn't like HEAD requests; retrying\n"
+      # 405, 406 and 501 are standard indications that HEAD shouldn't be used
+      if ($response->code =~ /^(405|406|501)$/o) {
+	print STDERR "         Perhaps server doesn't like HEAD requests; retrying\n"
 	  if $main::opt_verbose;
 	$main::servers_get_only{$url->authority}++;
 	next;
@@ -1000,7 +996,7 @@ sub get_headers {
       # Microsoft IIS has been seen dropping the connection prematurely
       # when it should be returning 405 instead
       elsif ($response->status_line =~ /^500 unexpected EOF/o) {
-	print STDERR "Server hung up on HEAD request; retrying\n"
+	print STDERR "         Server hung up on HEAD request; retrying\n"
 	  if $main::opt_verbose;
 	$main::servers_get_only{$url->authority}++;
 	next;
@@ -1010,7 +1006,7 @@ sub get_headers {
       # (yes, 404!!) in response to HEAD requests
       elsif (defined $response->server and $response->server =~ /^Netscape-Enterprise/o &&
 	     $response->code =~ /^(404|500)$/o) {
-	print STDERR "Unreliable response to HEAD request; retrying\n"
+	print STDERR "         Unreliable response to HEAD request; retrying\n"
 	  if $main::opt_verbose;
 	$main::servers_get_only{$url->authority}++;
 	next;
@@ -1019,7 +1015,7 @@ sub get_headers {
       # JavaWebServer/1.1.3 has been seen returning 500
       elsif (defined $response->server and $response->server =~ /^JavaWebServer/o &&
 	     $response->code =~ /^500$/o) {
-	print STDERR "Unreliable response to HEAD request; retrying\n"
+	print STDERR "         Unreliable response to HEAD request; retrying\n"
 	  if $main::opt_verbose;
 	$main::servers_get_only{$url->authority}++;
 	next;
@@ -1028,7 +1024,7 @@ sub get_headers {
       # ALEPH has been seen returning 500
       elsif (defined $response->server and $response->server =~ /^ALEPH/o &&
 	     $response->code =~ /^500$/o) {
-	print STDERR "Unreliable response to HEAD request; retrying\n"
+	print STDERR "         Unreliable response to HEAD request; retrying\n"
 	  if $main::opt_verbose;
 	$main::servers_get_only{$url->authority}++;
 	next;
@@ -1303,8 +1299,16 @@ sub count_problems {
   foreach my $code (sort keys %problems) {
     foreach my $url (sort keys %{ $problems{$code}}) {
       foreach my $response (@{ $problems{$code}{$url} }) {
-	my $parent = URI->new($response->request->header('Referer'));
-	$count++ if $parent =~ m/$server/;
+	if ($response->request->can('header')
+	    and defined $response->request->header('Referer')) {
+	  my $parent = URI->new($response->request->header('Referer'));
+	  $count++ if $parent =~ m/$server/;
+	} else {
+	  # This situation should not happen, here is debug code:
+#	  print "DEBUG: $code  $url\n", $response->as_string, "\n",
+#	    $response->request->as_string, "\n";
+	  warn "DEBUG: Incomplete header for $code $url should not occur!\n";
+	}
       }
     }
   }
@@ -1313,7 +1317,12 @@ sub count_problems {
 }
 
 
-# $Log: checkbot.pl,v $
+# $Log: checkbot,v $
+# Revision 1.69  2002/12/25 14:53:30  graaff
+# Improved makefile and packaging, Better default for --match argument,
+# Additional instance of using GET instead of HEAD added,
+# Bug fixes in printing of web server feedback
+#
 # Revision 1.68  2002/09/28 21:02:45  graaff
 # Version 1.68
 #
@@ -1563,4 +1572,3 @@ sub count_problems {
 # First version is identical to the perl4 version. I will change it
 # gradually.
 #
-!NO!SUBS!

@@ -1,3 +1,49 @@
+2002-12-25  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (get_headers): Make sure feedback on HEAD requests gets
+	indented properly.
+
+2002-12-23  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (init_globals): Anchor automatic match argument based
+	on start URLs at the beginning.
+
+2002-12-16  Jens Schweikhardt  <schweikh@schweikhardt.net>
+
+	* checkbot (check_external): Fixed printf to be print so that
+	actual information can be printed using --verbose.
+
+2002-12-02  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (get_headers): Also add 406 as an error which might
+	indicate that the web server doesn't like us doing a HEAD, so GET
+	instead.
+
+2002-12-01  Hans de Graaff  <hans@degraaff.org>
+
+	* Makefile.PL: Updated based on libwww-perl Makefile.PL.
+
+	* checkbot: Remove the preamble cruft and just assume perl will be
+	/usr/bin/perl. Therefore also renamed checkbot.pl -> checkbot.
+	Indicate that Checkbot is licensed under the same terms as Perl
+	itself.
+
+	* checkbot.pl (count_problems): Rewrote debugging code to handle
+	request without header() method, even though this should not be
+	possible it does happen in the wild. 
+	(handle_doc): Perform fully-qualified hostname check for all URI's
+	which support a hostname.
+
+2002-11-30  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl (add_checked): Use ->can construct to check if URL
+	supports host method.
+
+2002-10-27  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot.pl: Add hints for recursive or run-away checkbot
+	processes.
+
 2002-09-28  Hans de Graaff  <hans@degraaff.org>
 
 	* Checkbot 1.68 released
