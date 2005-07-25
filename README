@@ -32,8 +32,10 @@ properly install Checkbot:
     Net::FTP
     Mail::Send (optional, contained in the MailTools package)
 
-Problems, etc. can be reported to checkbot@degraaff.org
 Checkbot is distributed at: http://degraaff.org/checkbot/
+
+Problems, bug reports, and feature enhancements are welcome at
+http://sourceforge.net/projects/checkbot/
 
 There is an announcement mailing list to which announcements of new
 versions are posted. You can sign up for the list by sending mail to
@@ -44,6 +46,21 @@ reach you.
 
 Hans de Graaff <hans@degraaff.org>
 
+Changes in version 1.76 (25-Jul-2005)
+
+    * Error reports now include the page title for easier identification.
+    * javascript: links are now ignored because they cannot be checked.
+    * Documentation updates.
+
+Changes in version 1.75 (22-Apr-2004)
+
+    * New --cookies option to accept cookies from servers while checking.
+    * New --noproxy option indicates which domains should not be
+      passed through the proxy.
+    * New error code for unknown domains; only known non-checkable
+      schemes are ignored now.
+    * Minor bug fixes.
+    * Documentation updates.
 
 Changes in version 1.74 (17-Dec-2003)
 

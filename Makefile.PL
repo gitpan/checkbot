@@ -1,6 +1,6 @@
 # This -*- perl -*- script makes the Makefile
 # Based on the Makefile.PL in the libwww-perl distribution
-# $Id: Makefile.PL,v 1.11 2004/04/22 19:20:29 graaff Exp $
+# $Id: Makefile.PL,v 1.13 2005/01/23 15:32:52 graaff Exp $
 
 require 5.005;
 use strict;
@@ -47,7 +47,7 @@ EOT
 print "Checking for HTML::Parser..";
 eval {
     require HTML::HeadParser;
-    HTML::Parser->VERSION(3.10);
+    HTML::Parser->VERSION(3.33);
 };
 if ($@) {
     print " failed\n";
@@ -135,6 +135,25 @@ $@
 Mail::Send is used to allow Checkbot to send email. You currently
 can not use the --mailto option of Checkbot. Mail::Send can be found
 in the MailTools package.
+
+EOT
+} else {
+    print " ok\n";
+}
+
+print "Checking for Time::Duration ..";
+eval {
+    require Time::Duration;
+};
+if ($@) {
+    print " failed\n";
+    $missing_modules++;
+    print <<EOT;
+$@ 
+
+Time::Duration is used to display information on elapsed time in the
+reports. If Time::Duration is not available Checkbot will still work,
+but this information is not printed in the report.
 
 EOT
 } else {

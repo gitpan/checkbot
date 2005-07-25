@@ -1,3 +1,56 @@
+2005-07-25  Hans de Graaff  <hans@degraaff.org>
+
+	* Checkbot 1.76 is released.
+
+2005-06-07  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (printServerProblems): Include title of page.
+	(handle_doc): Extract title for later printing.
+	Add new hash url_title to store page titles.
+	Based on a patch from John Bintz.
+
+2005-04-23  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot: Add documentation on use of file:/// URLs.
+
+2005-01-23  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot: Only send mail when Checkbot has detected any
+	problems, based on suggestion from Thomas Kuerten.
+
+	Print duration of run on final report, and refactor use of start
+	time variable to facilitate this. Feature depends on availability
+	of Time::Duration, but checkbot will work without it. Based on
+	patch from Adam Griff.
+
+2005-01-23  Adam Griff <griff@computer.org>
+	
+	* checkbot (create_page): Print out more options on results page.
+	
+2005-01-21  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot: Remove automatic version number based on CVS version
+	now that commits will be more frequent than releases.
+
+2004-11-12  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (handle_url): Ignore javascript: URLs instead of
+	generating a 904 error. It would be nice to handle these as well.
+
+2004-05-26  Hans de Graaff  <hans@degraaff.org>
+
+	* Makefile.PL: Sync HTML::Parser requirement with required
+	versions of libwww-perl.
+
+2004-05-03  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot: Write better documentation for --file option.
+
+2004-04-26  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot: Minor documentation changes thank to Jens
+	Schweikhardt.
+
 2004-04-22  Hans de Graaff  <hans@degraaff.org>
 
 	* Checkbot 1.75 is released.

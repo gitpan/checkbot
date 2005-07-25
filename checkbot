@@ -13,15 +13,26 @@
 # Info-URL: http://degraaff.org/checkbot/
 # Comments to: checkbot@degraaff.org
 #
-# $Id: checkbot,v 1.75 2004/04/22 19:20:46 graaff Exp $
+# $Id: checkbot,v 1.82 2005/07/25 19:54:06 graaff Exp $
 # (Log information can be found at the end of the script)
 
 require 5.004;
 use strict;
 
 require LWP;
-
 use File::Basename;
+
+BEGIN {
+  eval "use Time::Duration qw(duration)";
+  if ($@)
+    { warn "$@"; $main::useduration = 0; }
+  else
+    { $main::useduration = 1;}
+}
+
+# Version information
+$VERSION = '1.76';
+
 
 =head1 NAME
 
@@ -29,13 +40,13 @@ Checkbot - WWW Link Verifier
 
 =head1 SYNOPSIS
 
-checkbot [B<--cookies>] [B<--debug>] [B<--help>] [B<--mailto> email address]
-         [B<--noproxy> list of domains]
+checkbot [B<--cookies>] [B<--debug>] [B<--file> file name] [B<--help>]
+         [B<--mailto> email addresses] [B<--noproxy> list of domains]
          [B<--verbose>]
          [B<--url> start URL]
          [B<--match> match string] [B<--exclude> exclude string]
          [B<--proxy> proxy URL] [B<--internal-only>]
-         [B<--ignore> ignore string] [B<--file> file name]
+         [B<--ignore> ignore string]
          [B<--filter> substitution regular expression]
          [B<--style> style file URL]
          [B<--note> note] [B<--sleep> seconds] [B<--timeout> timeout]
@@ -69,7 +80,7 @@ Options for Checkbot are:
 =item --cookies
 
 Accept cookies from the server and offer them again at later
-requests. This may be useful for servers to use cookies to handle
+requests. This may be useful for servers that use cookies to handle
 sessions. By default Checkbot does not accept any cookies.
 
 =item --debug
@@ -77,15 +88,28 @@ sessions. By default Checkbot does not accept any cookies.
 Enable debugging mode. Not really supported anymore, but it will keep
 some files around that otherwise would be deleted.
 
+=item --file <file name>
+
+Use the file I<file name> as the basis for the summary file names. The
+summary page will get the I<file name> given, and the server pages are
+based on the I<file name> without the .html extension. For example,
+setting this option to C<index.html> will create a summary page called
+index.html and server pages called index-server1.html and
+index-server2.html.
+
+The default value for this option is C<checkbot.html>.
+
 =item --help
 
 Shows brief help message on the standard output.
 
-=item --mailto <email address>
+=item --mailto <email address>[,<email address>]
 
 Send mail to the I<email address> when Checkbot is done checking. You
-can give more than one address separated by comma's. The notification
-email includes a small summary of the results.
+can give more than one address separated by commas. The notification
+email includes a small summary of the results. As of Checkbot 1.76
+email is only sent if problems have been found during the Checkbot
+run.
 
 =item --noproxy <list of domains>
 
@@ -207,10 +231,6 @@ seconds. Default is 3 hours (10800 seconds). Checkbot will start the
 interval at one minute, and gradually extend it towards the maximum
 interval.
 
-=item --file <file name>
-
-Write the summary pages into file I<file name>. Default is C<checkbot.html>.
-
 =item --style <URL of style file>
 
 When this option is used, Checkbot embeds this URL as a link to a
@@ -320,7 +340,7 @@ for more details.
 In some cases Checkbot literally takes forever to finish. There are two
 common causes for this problem.
 
-First, there might be a database application as part of the website
+First, there might be a database application as part of the web site
 which generates a new page based on links on another page. Since
 Checkbot tries to travel through all links this will create an
 infinite number of pages. This kind of run-away effect is usually predictable. It can be avoided by using the --exclude option.
@@ -357,6 +377,12 @@ mail when the run is done:
 
     checkbot --mailto hans@degraaff.org http://degraaff.org/checkbot/
 
+It is possible to check a set of local file without using a web
+server. This only works for static files but may be useful in some
+cases.
+
+    checkbot file:///var/www/documents/
+
 =head1 PREREQUISITES
 
 This script uses the C<LWP> modules.
@@ -388,6 +414,10 @@ my @starturls = ();
 my %url_error = ();
 my %url_parent = ();
 
+# Hash for storing the title of a URL for use in reports. TODO: remove
+# this and store title as part of queue.
+my %url_title = ();
+
 # Hash for suppressions, which are defined as a combination of code and URL
 my %suppression = ();
 
@@ -399,9 +429,8 @@ my %stats = ('todo' => 0,
 # Options hash (to be filled by GetOptions)
 my %options = ();
 
-# Version information
-my $VERSION;
-( $VERSION ) = sprintf("%d.%02d", q$Revision: 1.75 $ =~ /(\d+)\.(\d+)/);
+# Keep track of start time so that we can use it in reports
+my $start_time = time();
 
 # If on a Mac we should ask for the arguments through some MacPerl stuff
 if ($^O eq 'MacOS') {
@@ -420,7 +449,7 @@ check_links();
 
 # Finish up
 create_page(1);
-send_mail() if defined $main::opt_mailto;
+send_mail() if defined $main::opt_mailto and $stats{problem} > 0;
 
 exit 0;
 
@@ -511,9 +540,6 @@ sub init_modules {
 
 sub init_globals {
   my $url;
-
-  # Remember start time
-  $main::start_time = localtime();
 
   # Directory and files for output
   if ($main::opt_file) {
@@ -711,7 +737,7 @@ sub handle_url {
   if (not defined($url->scheme) 
       or $url->scheme !~ /^(https?|file|ftp|gopher|nntp)$/o ) {
     # Ignore URLs which we know we can ignore, create error for others
-    if ($url->scheme =~ /^(news|mailto)$/o) {
+    if ($url->scheme =~ /^(news|mailto|javascript)$/o) {
       output "Ignore $url", 1;
     } else {
       add_error($urlstr, $urlparent, 904, "Unknown scheme in URL: " . $url->scheme);
@@ -921,9 +947,12 @@ sub create_page {
     # Show the status of this checkbot session
     print OUT "<table><tr><th>Status:</th><td>";
     if ($final_page) {
-      print OUT "Done.\n"
+      print OUT "Done.<br />\n";
+      print OUT 'Run started on ' . localtime($start_time) . ".<br />\n";
+      print OUT 'Run duration ', duration(time() - $start_time), ".\n"
+	if $main::useduration;
     } else {
-      print OUT "Running since $main::start_time.<br />\n";
+      print OUT "Running since " . localtime($start_time) . ".<br />\n";
       print OUT "Last update at ". localtime() . ".<br />\n";
       print OUT "Next update in <strong>", int($main::cp_int), "</strong> minutes.\n";
     }
@@ -944,16 +973,20 @@ sub create_page {
     # Checkbot session parameters
     print OUT "<hr /><h2>Checkbot session parameters</h2>\n";
     print OUT "<table>\n";
-    print OUT "<tr><th align=\"left\">--url</th><td>Start URL(s)</td><td>",
+    print OUT "<tr><th align=\"left\">--url &amp;<br> &lt;command line urls&gt;</th><td>Start URL(s)</td><td>",
               join(',', @starturls), "</td></tr>\n";
     print OUT "<tr><th align=\"left\">--match</th><td>Match regular expression</td><td>$main::opt_match</td></tr>\n";
     print OUT "<tr><th align=\"left\">--exclude</th><td>Exclude regular expression</td><td>$main::opt_exclude</td></tr>\n" if defined $main::opt_exclude;
     print OUT "<tr><th align=\"left\">--filter</th><td>Filter regular expression</td><td>$main::opt_filter</td></tr>\n" if defined $main::opt_filter;
+    print OUT "<tr><th align=\"left\">--noproxy</th><td>No Proxy for the following domains</td><td>$main::opt_noproxy</td></tr>\n" if defined $main::opt_noproxy;
     print OUT "<tr><th align=\"left\">--ignore</th><td>Ignore regular expression</td><td>$main::opt_ignore</td></tr>\n" if defined $main::opt_ignore;
+    print OUT "<tr><th align=\"left\">--suppress</th><td>Suppress error code and URL specified by</td><td>$main::opt_suppress</td></tr>\n" if defined $main::opt_suppress;
     print OUT "<tr><th align=\"left\">--dontwarn</th><td>Don't warn for these codes</td><td>$main::opt_dontwarn</td></tr>\n" if $main::opt_dontwarn ne 'xxx';
     print OUT "<tr><th align=\"left\">--enable-virtual</th><td>Use virtual names only</td><td>yes</td></tr>\n" if $main::opt_enable_virtual;
     print OUT "<tr><th align=\"left\">--internal-only</th><td>Check only internal links</td><td>yes</td></tr>\n" if defined $main::opt_internal_only;
-
+    print OUT "<tr><th align=\"left\">--cookies</th><td>Accept cookies</td><td>yes</td></tr>\n" if defined $main::opt_cookies;
+    print OUT "<tr><th align=\"left\">--sleep</th><td>Sleep seconds between requests</td><td>$main::opt_sleep</td></tr>\n" if ($main::opt_sleep != 0);
+    print OUT "<tr><th align=\"left\">--timeout</th><td>Request timeout seconds</td><td>$main::opt_timeout</td></tr>\n";
     print OUT "</table>\n";
 
     # Statistics for types of links
@@ -1091,6 +1124,20 @@ sub handle_doc {
 
   # When we received the document we can add a notch to its server
   $main::servers{$response->base->authority}++;
+
+  # Retrieve useful information from this document.
+  # TODO: using a regexp is NOT how this should be done, but it is
+  # easy. The right way would be to write a HTML::Parser or to use
+  # XPath on the document DOM provided that the document is easily
+  # parsed as XML. Either method is a lot of overhead.
+  if ($response->content =~ /title\>(.*?)\<\/title/mi) {
+
+	# TODO: using a general hash that stores titles for all pages may
+	# consume too much memory. It would be better to only store the
+	# titles for requests that had problems. That requires passing them
+	# down to the queue. Take the easy way out for now.
+	$url_title{$response->base} = $1;
+  }
 
   # Parse the document just downloaded
   my $p = HTML::LinkExtor->new(undef, $response->base);
@@ -1285,8 +1332,9 @@ sub printServerProblems {
 	$urlOut .= "</li>\n";
       }
       if ($urlOut ne '') {
-	$codeOut .= "<dt><a href=\"$parent\">$parent</a>\n<dd>\n";
-	$codeOut .= "<ul>\n$urlOut\n</ul>\n\n";
+	$codeOut .= "<dt><a href=\"$parent\">$parent</a>";
+	$codeOut .= "<br />$url_title{$parent}\n" if defined $url_title{$parent};
+	$codeOut .= "<dd><ul>\n$urlOut\n</ul>\n\n";
       }
     }
 
@@ -1327,6 +1375,11 @@ sub send_mail {
   print $fh $stats{'link'}, " links were checked, and ";
   print $fh $stats{'problem'}, " problems were detected.\n";
 
+  print $fh 'Run started on ' . localtime($start_time) . "\n";
+  print $fh 'Run duration ', duration(time() - $start_time), "\n"
+    if $main::useduration;
+
+
   print $fh "\n-- \nCheckbot $VERSION\n";
   print $fh "<URL:http://degraaff.org/checkbot/>\n";
 
@@ -1339,6 +1392,8 @@ Checkbot $VERSION command line options:
 
   --cookies          Accept cookies from the server
   --debug            Debugging mode: No pauses, stop after 25 links.
+  --file file        Use file as basis for output file names.
+  --help             Provide this message.
   --mailto address   Mail brief synopsis to address when done.
   --noproxy domains  Do not proxy requests to given domains.
   --verbose          Verbose mode: display many messages about progress.
@@ -1349,7 +1404,6 @@ Checkbot $VERSION command line options:
   --filter regexp    Run regexp on each URL found
   --ignore ignore    Ignore URLs matching 'ignore'
   --suppress file    Use contents of 'file' to suppress errors in output
-  --file file        Write results to file, default is checkbot.html
   --note note        Include Note (e.g. URL to report) along with Mail message.
   --proxy URL        URL of proxy server for HTTP and FTP requests.
   --internal-only    Only check internal links, skip checking external links.
@@ -1403,6 +1457,29 @@ sub count_problems {
 
 
 # $Log: checkbot,v $
+# Revision 1.82  2005/07/25 19:54:06  graaff
+# Version 1.76
+#
+# Revision 1.81  2005/06/07 16:07:52  graaff
+# Show title of page with problem in reports; documentation fixes.
+#
+# Revision 1.80  2005/01/23 15:35:57  graaff
+# Also print duration information in the email.
+#
+# Revision 1.79  2005/01/23 15:32:52  graaff
+# Keep track of duration of run and include information in report if
+# Time::Duration is available.
+#
+# Revision 1.78  2005/01/23 14:45:06  graaff
+# Print out more options on the results page.
+#
+# Revision 1.77  2005/01/23 14:31:57  graaff
+# Make version identifier manual; only sent notification email when
+# problems have been found.
+#
+# Revision 1.76  2005/01/21 13:53:38  graaff
+# Last year's changes.
+#
 # Revision 1.75  2004/04/22 19:20:46  graaff
 # Version 1.75
 #

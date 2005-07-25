@@ -1,3 +1,8 @@
 This file is no longer being updated, as I have moved my project
 management into ShadowPlan. I hope to have an HTML version of the
 current state online soon. -- Hans 30-Apr-2001
+
+
+* Handle the javascript: scheme, possibly by relying on an external
+  javascript interpreter. This should be optional functionality, as
+  this may be introducing difficult to satisfy dependencies.
