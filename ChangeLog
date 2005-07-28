@@ -1,3 +1,12 @@
+2005-07-28  Hans de Graaff  <hans@degraaff.org>
+
+	* Checkbot 1.77 is released.
+
+	* checkbot: Fix use of $VERSION so that it compiles and can be
+	used by MakeMaker at the same time.
+	(handle_doc): Check for presence of robots meta tag and act on it.
+	Based on a patch by Donald Willingham.
+
 2005-07-25  Hans de Graaff  <hans@degraaff.org>
 
 	* Checkbot 1.76 is released.

@@ -16,6 +16,8 @@ keep that in mind when making suggestions. Speaking of which, be sure
 to check the to do file on the website for things which have been
 suggested for Checkbot.
 
+INSTALLATION
+
 Making and installing Checkbot is easy:
 
     perl Makefile.PL
@@ -31,6 +33,10 @@ properly install Checkbot:
     MIME::Base64
     Net::FTP
     Mail::Send (optional, contained in the MailTools package)
+	Time::Duration (optional, used for additional info in report)
+
+
+WHERE TO FIND IT
 
 Checkbot is distributed at: http://degraaff.org/checkbot/
 
@@ -38,13 +44,19 @@ Problems, bug reports, and feature enhancements are welcome at
 http://sourceforge.net/projects/checkbot/
 
 There is an announcement mailing list to which announcements of new
-versions are posted. You can sign up for the list by sending mail to
-checkbot-announce-subscribe@graaff.xs4all.nl
-Note that this mailing list is hosted on my home machine, which is not
-always online. It may take up to a day for the confirmation request to
-reach you.
+versions are posted. You can sign up for the list at 
+https://lists.sourceforge.net/lists/listinfo/checkbot-announce
 
 Hans de Graaff <hans@degraaff.org>
+
+
+RECENT CHANGES
+
+Changes in version 1.77 (28-Jul-2005)
+
+    * Fix silly build-related problem that prevented checkbot 1.76 from
+      running at all.
+    * Check for presence of robots meta tag and act on it.
 
 Changes in version 1.76 (25-Jul-2005)
 

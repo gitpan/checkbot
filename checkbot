@@ -2,7 +2,7 @@
 #
 # checkbot - A perl5 script to check validity of links in www document trees
 #
-# Hans de Graaff <hans@degraaff.org>, 1994-2004.
+# Hans de Graaff <hans@degraaff.org>, 1994-2005.
 # Based on Dimitri Tischenko, Delft University of Technology, 1994
 # Based on the testlinks script by Roy Fielding
 # With contributions from Bruce Speyer <bruce.speyer@elecomm.com>
@@ -13,7 +13,7 @@
 # Info-URL: http://degraaff.org/checkbot/
 # Comments to: checkbot@degraaff.org
 #
-# $Id: checkbot,v 1.82 2005/07/25 19:54:06 graaff Exp $
+# $Id: checkbot,v 1.84 2005/07/28 18:27:27 graaff Exp $
 # (Log information can be found at the end of the script)
 
 require 5.004;
@@ -31,7 +31,8 @@ BEGIN {
 }
 
 # Version information
-$VERSION = '1.76';
+my
+$VERSION = '1.77';
 
 
 =head1 NAME
@@ -761,7 +762,7 @@ sub handle_url {
   }
 
   # Determine if this is a URL we should GET fully or partially (using HEAD)
-  if ($type =~ /html/o 
+  if ($type =~ /html/o
       && $url->scheme =~ /^(https?|file|ftp|gopher)$/o
       and is_internal($url->as_string)
       && (!defined $main::opt_exclude || $url !~ /$main::opt_exclude/o)) {
@@ -1139,6 +1140,17 @@ sub handle_doc {
 	$url_title{$response->base} = $1;
   }
 
+  # Check if this document has a Robots META tag. If so, check if
+  # Checkbot is allowed to FOLLOW the links on this page. Note that we
+  # ignore the INDEX directive because Checkbot is not an indexing
+  # robot. See http://www.robotstxt.org/wc/meta-user.html
+  # TODO: one more reason (see title) to properly parse this document...
+  if ($response->content =~ /\<meta.*?robots.*?nofollow.*?\>/mi) {
+	output "Obeying robots meta tag $&, skipping document", 2;
+	return;
+  }
+
+
   # Parse the document just downloaded
   my $p = HTML::LinkExtor->new(undef, $response->base);
   $p->parse($response->content);
@@ -1457,6 +1469,12 @@ sub count_problems {
 
 
 # $Log: checkbot,v $
+# Revision 1.84  2005/07/28 18:27:27  graaff
+# Version 1.77
+#
+# Revision 1.83  2005/07/28 05:05:30  graaff
+# Fix use of VERSION.
+#
 # Revision 1.82  2005/07/25 19:54:06  graaff
 # Version 1.76
 #
