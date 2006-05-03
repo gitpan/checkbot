@@ -13,7 +13,7 @@
 # Info-URL: http://degraaff.org/checkbot/
 # Comments to: checkbot@degraaff.org
 #
-# $Id: checkbot,v 1.84 2005/07/28 18:27:27 graaff Exp $
+# $Id: checkbot,v 1.93 2006/05/03 20:13:21 graaff Exp $
 # (Log information can be found at the end of the script)
 
 require 5.004;
@@ -24,15 +24,12 @@ use File::Basename;
 
 BEGIN {
   eval "use Time::Duration qw(duration)";
-  if ($@)
-    { warn "$@"; $main::useduration = 0; }
-  else
-    { $main::useduration = 1;}
+  $main::useduration = ($@ ? 0 : 1);
 }
 
 # Version information
 my
-$VERSION = '1.77';
+$VERSION = '1.78';
 
 
 =head1 NAME
@@ -512,6 +509,8 @@ sub check_options {
     if $main::opt_internal_only;
   output "Allowing unqualified host names", 1
     if $main::opt_allow_simple_hosts;
+  output "Not using optional Time::Duration module: not found", 1
+	unless $main::useduration;
 }
 
 sub init_modules {
@@ -741,7 +740,8 @@ sub handle_url {
     if ($url->scheme =~ /^(news|mailto|javascript)$/o) {
       output "Ignore $url", 1;
     } else {
-      add_error($urlstr, $urlparent, 904, "Unknown scheme in URL: " . $url->scheme);
+      add_error($urlstr, $urlparent, 904, "Unknown scheme in URL: "
+				. $url->scheme);
     }
     return;
   }
@@ -859,9 +859,12 @@ sub performRequest {
     # if we should try again with a GET request.
     if ($try eq 'HEAD') {
 
-      # 403, 405, 406 and 501 are standard indications that HEAD
+      # 400, 405, 406 and 501 are standard indications that HEAD
       # shouldn't be used
-      if ($response->code =~ /^(403|405|406|501)$/o) {
+	  # We used to check for 403 here also, but according to the HTTP spec
+      # a 403 indicates that the server understood us fine but really does
+	  # not want us to see the page, so we SHOULD NOT retry.
+      if ($response->code =~ /^(400|405|406|501)$/o) {
 	output "Server does not seem to like HEAD requests; retrying", 2;
 	$main::servers_get_only{$url->authority}++;
 	next;
@@ -946,7 +949,7 @@ sub create_page {
     print OUT "<h1><em>Checkbot</em>: main report</h1>\n";
 
     # Show the status of this checkbot session
-    print OUT "<table><tr><th>Status:</th><td>";
+    print OUT "<table class='status'><tr><th>Status:</th><td>";
     if ($final_page) {
       print OUT "Done.<br />\n";
       print OUT 'Run started on ' . localtime($start_time) . ".<br />\n";
@@ -960,34 +963,34 @@ sub create_page {
     print OUT "</td></tr></table>\n\n";
 
     # Summary (very brief overview of key statistics)
-    print OUT "<hr /><h2>Report summary</h2>\n";
+    print OUT "<hr /><h2 class='summary'>Report summary</h2>\n";
 
-    print OUT "<table>\n";
-    print OUT "<tr><th>Links checked</th><td>", $stats{'link'}, "</td></tr>\n";
-    print OUT "<tr><th>Problems so far</th><td>", $stats{'problem'}, "</td></tr>\n";
-    print OUT "<tr><th>Links to do</th><td>", $stats{'todo'}, "</td></tr>\n";
+    print OUT "<table class='summary'>\n";
+    print OUT "<tr id='checked'><th>Links checked</th><td class='value'>", $stats{'link'}, "</td></tr>\n";
+    print OUT "<tr id='problems'><th>Problems so far</th><td class='value'>", $stats{'problem'}, "</td></tr>\n";
+    print OUT "<tr id='todo'><th>Links to do</th><td class='value'>", $stats{'todo'}, "</td></tr>\n";
     print OUT "</table>\n";
 
     # Server information
     printAllServers($final_page);
 
     # Checkbot session parameters
-    print OUT "<hr /><h2>Checkbot session parameters</h2>\n";
-    print OUT "<table>\n";
-    print OUT "<tr><th align=\"left\">--url &amp;<br> &lt;command line urls&gt;</th><td>Start URL(s)</td><td>",
+    print OUT "<hr /><h2 class='params'>Checkbot session parameters</h2>\n";
+    print OUT "<table class='params'>\n";
+    print OUT "<tr><th align=\"left\">--url &amp;<br/> &lt;command line urls&gt;</th><td class='text'>Start URL(s)</td><td class='value' id='url'>",
               join(',', @starturls), "</td></tr>\n";
-    print OUT "<tr><th align=\"left\">--match</th><td>Match regular expression</td><td>$main::opt_match</td></tr>\n";
-    print OUT "<tr><th align=\"left\">--exclude</th><td>Exclude regular expression</td><td>$main::opt_exclude</td></tr>\n" if defined $main::opt_exclude;
-    print OUT "<tr><th align=\"left\">--filter</th><td>Filter regular expression</td><td>$main::opt_filter</td></tr>\n" if defined $main::opt_filter;
-    print OUT "<tr><th align=\"left\">--noproxy</th><td>No Proxy for the following domains</td><td>$main::opt_noproxy</td></tr>\n" if defined $main::opt_noproxy;
-    print OUT "<tr><th align=\"left\">--ignore</th><td>Ignore regular expression</td><td>$main::opt_ignore</td></tr>\n" if defined $main::opt_ignore;
-    print OUT "<tr><th align=\"left\">--suppress</th><td>Suppress error code and URL specified by</td><td>$main::opt_suppress</td></tr>\n" if defined $main::opt_suppress;
-    print OUT "<tr><th align=\"left\">--dontwarn</th><td>Don't warn for these codes</td><td>$main::opt_dontwarn</td></tr>\n" if $main::opt_dontwarn ne 'xxx';
-    print OUT "<tr><th align=\"left\">--enable-virtual</th><td>Use virtual names only</td><td>yes</td></tr>\n" if $main::opt_enable_virtual;
-    print OUT "<tr><th align=\"left\">--internal-only</th><td>Check only internal links</td><td>yes</td></tr>\n" if defined $main::opt_internal_only;
-    print OUT "<tr><th align=\"left\">--cookies</th><td>Accept cookies</td><td>yes</td></tr>\n" if defined $main::opt_cookies;
-    print OUT "<tr><th align=\"left\">--sleep</th><td>Sleep seconds between requests</td><td>$main::opt_sleep</td></tr>\n" if ($main::opt_sleep != 0);
-    print OUT "<tr><th align=\"left\">--timeout</th><td>Request timeout seconds</td><td>$main::opt_timeout</td></tr>\n";
+    print OUT "<tr><th align=\"left\">--match</th><td class='text'>Match regular expression</td><td class='value' id='match'>$main::opt_match</td></tr>\n";
+    print OUT "<tr><th align=\"left\">--exclude</th><td class='text'>Exclude regular expression</td><td class='value' id='exclude'>$main::opt_exclude</td></tr>\n" if defined $main::opt_exclude;
+    print OUT "<tr><th align=\"left\">--filter</th><td class='text'>Filter regular expression</td><td class='value' id='filter'>$main::opt_filter</td></tr>\n" if defined $main::opt_filter;
+    print OUT "<tr><th align=\"left\">--noproxy</th><td class='text'>No Proxy for the following domains</td><td class='value' id='noproxy'>$main::opt_noproxy</td></tr>\n" if defined $main::opt_noproxy;
+    print OUT "<tr><th align=\"left\">--ignore</th><td class='text'>Ignore regular expression</td><td class='value' id='ignore'>$main::opt_ignore</td></tr>\n" if defined $main::opt_ignore;
+    print OUT "<tr><th align=\"left\">--suppress</th><td class='text'>Suppress error code and URL specified by</td><td class='value' id='suppress'>$main::opt_suppress</td></tr>\n" if defined $main::opt_suppress;
+    print OUT "<tr><th align=\"left\">--dontwarn</th><td class='text'>Don't warn for these codes</td><td class='value' id='dontwarn'>$main::opt_dontwarn</td></tr>\n" if $main::opt_dontwarn ne 'xxx';
+    print OUT "<tr><th align=\"left\">--enable-virtual</th><td class='text'>Use virtual names only</td><td class='value' id='enable_virtual'>yes</td></tr>\n" if $main::opt_enable_virtual;
+    print OUT "<tr><th align=\"left\">--internal-only</th><td class='text'>Check only internal links</td><td class='value' id='internal_only'>yes</td></tr>\n" if defined $main::opt_internal_only;
+    print OUT "<tr><th align=\"left\">--cookies</th><td class='text'>Accept cookies</td><td class='value' id='cookies'>yes</td></tr>\n" if defined $main::opt_cookies;
+    print OUT "<tr><th align=\"left\">--sleep</th><td class='text'>Sleep seconds between requests</td><td class='value' id='sleep'>$main::opt_sleep</td></tr>\n" if ($main::opt_sleep != 0);
+    print OUT "<tr><th align=\"left\">--timeout</th><td class='text'>Request timeout seconds</td><td class='value' id='timeout'>$main::opt_timeout</td></tr>\n";
     print OUT "</table>\n";
 
     # Statistics for types of links
@@ -1018,8 +1021,8 @@ sub printAllServers {
   my ($finalPage) = @_;
 
   my $server;
-  print OUT "<hr /><h2>Overview per server</h2>\n";
-  print OUT "<table><tr><th>Server</th><th>Server<br />Type</th><th>Unique<br />links</th><th>Problem<br />links</th><th>Ratio</th></tr>\n";
+  print OUT "<hr /><h2 class='overview'>Overview per server</h2>\n";
+  print OUT "<table class='overview'><tr><th>Server</th><th>Server<br />Type</th><th>Unique<br />links</th><th>Problem<br />links</th><th>Ratio</th></tr>\n";
 
   foreach $server (sort keys %main::servers) {
     print_server($server, $finalPage);
@@ -1112,6 +1115,7 @@ sub handle_doc {
   my ($response) = @_;
 
   my $num_links = 0;
+  my $new_links = 0;
 
   # TODO: we are making an assumption here that the $reponse->base is
   # valid, which might not always be true! This needs to be fixed, but
@@ -1131,7 +1135,7 @@ sub handle_doc {
   # easy. The right way would be to write a HTML::Parser or to use
   # XPath on the document DOM provided that the document is easily
   # parsed as XML. Either method is a lot of overhead.
-  if ($response->content =~ /title\>(.*?)\<\/title/mi) {
+  if ($response->content =~ /title\>(.*?)\<\/title/si) {
 
 	# TODO: using a general hash that stores titles for all pages may
 	# consume too much memory. It would be better to only store the
@@ -1145,7 +1149,7 @@ sub handle_doc {
   # ignore the INDEX directive because Checkbot is not an indexing
   # robot. See http://www.robotstxt.org/wc/meta-user.html
   # TODO: one more reason (see title) to properly parse this document...
-  if ($response->content =~ /\<meta.*?robots.*?nofollow.*?\>/mi) {
+  if ($response->content =~ /\<meta.*?robots.*?nofollow.*?\>/si) {
 	output "Obeying robots meta tag $&, skipping document", 2;
 	return;
   }
@@ -1172,6 +1176,11 @@ sub handle_doc {
       # in order to work (e.g. when directory indexing is turned off).
       next if $tag eq 'base';
 
+	  # Skip some 'links' that are not required to link to an actual
+	  # live link but which LinkExtor returns as links anyway.
+	  next if $tag eq 'applet' and $_ eq 'code';
+	  next if $tag eq 'object' and $_ eq 'classid';
+
       # Run filter on the URL if defined
       if (defined $main::opt_filter) {
 	die "Filter supplied with --filter option contains errors!\n$@\n"
@@ -1187,9 +1196,11 @@ sub handle_doc {
       # Check whether URL has fully-qualified hostname
       if ($url->can('host') and $url->scheme ne 'news') {
         if (! defined $url->host) {
-	  add_error($url, $response->base->as_string, '901', $checkbot_errors{'901'});
+		  add_error($url, $response->base->as_string, '901',
+					$checkbot_errors{'901'});
         } elsif (!$main::opt_allow_simple_hosts && $url->host !~ /\./) {
-	  add_error($url, $response->base->as_string, '902', $checkbot_errors{'902'});
+		  add_error($url, $response->base->as_string, '902',
+					$checkbot_errors{'902'});
         }
       }
 
@@ -1200,30 +1211,32 @@ sub handle_doc {
       # e.g. <http://deesse.univ-lemans.fr:8003/Connected/RFC/1808/18.html>.
       # Thanks to Randal Schwartz and Reinier Post for their explanations.
       if ($url =~ /^http:\/\/.*\/\//) {
-	add_error($url, $response->base->as_string, '903', $checkbot_errors{'903'});
+		add_error($url, $response->base->as_string, '903',
+				  $checkbot_errors{'903'});
       }
 
       # We add all URLs found to the queue, unless we already checked
       # it earlier
       if (is_checked($url)) {
 
-	# If an error has already been logged for this URL we add the
-	# current parent to the list of parents on which this URL
-	# appears.
-	if (defined $url_error{$url}) {
-	  push @{$url_parent{$url}}, $response->base->as_string;
-	  $stats{'problem'}++;
-	}
+		# If an error has already been logged for this URL we add the
+		# current parent to the list of parents on which this URL
+		# appears.
+		if (defined $url_error{$url}) {
+		  push @{$url_parent{$url}}, $response->base->as_string;
+		  $stats{'problem'}++;
+		}
 	
-	$stats{'link'}++;
+		$stats{'link'}++;
       } else {
-	add_to_queue($url, $response->base);
-	$stats{'todo'}++;
+		add_to_queue($url, $response->base);
+		$stats{'todo'}++;
+		$new_links++;
       }
       $num_links++;
     }
   }
-  output "Got $num_links links from document", 2;
+  output "Got $num_links links ($new_links new) from document", 2;
 }
 
 
@@ -1240,7 +1253,7 @@ sub checkbot_status_message ($) {
     || '(Undefined status)';
 }
 
-sub print_server {
+sub print_server ($$) {
   my($server, $final_page) = @_;
 
   my $host = $server;
@@ -1252,17 +1265,24 @@ sub print_server {
   my $filename = "$main::server_prefix-$server.html";
   $filename =~ s/:/-/o;
 
-  print OUT "<tr><td>";
+  print OUT "<tr><td class='server'>";
   print OUT "<a href=\"@{[ (fileparse($filename))[0] ]}\">" if $server_problem > 0;
   print OUT "$server";
   print OUT "</a>" if $server_problem > 0;
   print OUT "</td>";
-  print OUT "<td>" . get_server_type($server) . "</td>";
-  printf OUT "<td align=\"right\">%d</td> <td align=\"right\">%d</td>",
-  $main::servers{$server} + $server_problem,
-  $server_problem;
+  print OUT "<td class='servertype'>" . get_server_type($server) . "</td>";
+  printf OUT "<td class='unique' align=\"right\">%d</td>",
+  $main::servers{$server} + $server_problem;
+  if ($server_problem) {
+    printf OUT "<td class='problems' id='oops' align=\"right\">%d</td>",
+    $server_problem;
+  } else {
+    printf OUT "<td class='problems' id='zero_defects' align=\"right\">%d</td>",
+    $server_problem;
+  }
+
   my $ratio = $server_problem / ($main::servers{$server} + $server_problem) * 100;
-  print OUT "<td align=\"right\">";
+  print OUT "<td class='ratio' align=\"right\">";
   print OUT "<strong>" unless $ratio < 0.5;
   printf OUT "%4d%%", $ratio;
   print OUT "</strong>" unless $ratio < 0.5;
@@ -1295,15 +1315,15 @@ sub print_server {
 
 # Return a string containing Checkbot's signature for HTML pages
 sub signature {
-  return "<hr />\n<p>Page created by <a href=\"http://degraaff.org/checkbot/\">Checkbot $VERSION</a> on <em>" . localtime() . "</em>.</p>\n".
+  return "<hr />\n<p class='signature'>Page created by <a href=\"http://degraaff.org/checkbot/\">Checkbot $VERSION</a> on <em>" . localtime() . "</em>.</p>\n".
     "<p><a href=\"http://validator.w3.org/check/referer\"><img src=\"http://www.w3.org/Icons/valid-xhtml11\" alt=\"Valid XHTML 1.1!\" height=\"31\" width=\"88\" /></a></p>".
     "</body></html>";
 }
 
 # Loop through all possible problems, select relevant ones for this server
 # and display them in a meaningful way.
-sub printServerProblems {
-  my ($server) = @_;
+sub printServerProblems ($$) {
+  my ($server, $final_page) = @_;
   $server = quotemeta $server;
 
   my $separator = "<hr />\n";
@@ -1315,8 +1335,8 @@ sub printServerProblems {
     foreach my $parent (@{$url_parent{$url}}) {
       next if $parent !~ $server;
       chomp $parent;
-      $thisServerList{$url_error{$url}{'code'}}{$parent}{$url} 
-	= $url_error{$url}{'status'};
+      $thisServerList{$url_error{$url}{'code'}}{$parent}{$url}
+		= $url_error{$url}{'status'};
     }
   }
 
@@ -1338,7 +1358,7 @@ sub printServerProblems {
       my $urlOut = '';
       foreach my $url (sort keys %{ $thisServerList{$code}{$parent} }) {
 	my $status = $thisServerList{$code}{$parent}{$url};
-	$urlOut .= "<li><a href=\"$url\">$url</a><br>\n";
+	$urlOut .= "<li><a href=\"$url\">$url</a><br/>\n";
 	$urlOut .= "$status"
 	  if defined $status and $status ne checkbot_status_message($code);
 	$urlOut .= "</li>\n";
@@ -1467,327 +1487,3 @@ sub count_problems {
   return $count;
 }
 
-
-# $Log: checkbot,v $
-# Revision 1.84  2005/07/28 18:27:27  graaff
-# Version 1.77
-#
-# Revision 1.83  2005/07/28 05:05:30  graaff
-# Fix use of VERSION.
-#
-# Revision 1.82  2005/07/25 19:54:06  graaff
-# Version 1.76
-#
-# Revision 1.81  2005/06/07 16:07:52  graaff
-# Show title of page with problem in reports; documentation fixes.
-#
-# Revision 1.80  2005/01/23 15:35:57  graaff
-# Also print duration information in the email.
-#
-# Revision 1.79  2005/01/23 15:32:52  graaff
-# Keep track of duration of run and include information in report if
-# Time::Duration is available.
-#
-# Revision 1.78  2005/01/23 14:45:06  graaff
-# Print out more options on the results page.
-#
-# Revision 1.77  2005/01/23 14:31:57  graaff
-# Make version identifier manual; only sent notification email when
-# problems have been found.
-#
-# Revision 1.76  2005/01/21 13:53:38  graaff
-# Last year's changes.
-#
-# Revision 1.75  2004/04/22 19:20:46  graaff
-# Version 1.75
-#
-# Revision 1.74  2003/12/17 20:12:40  graaff
-#  * New --suppress option allows Response code/URL combinations not to
-#    be reported as problems.
-#  * Checkbot warnings are now handled as pseudo-HTTP status messages so
-#    that they can make use of all Checkbot features such as --dontwarn
-#  * Option --allow-simple-hosts is deprecated due to this change
-#  * More robust handling of (lack of) status messages.
-#  * Checkbot now requires LWP 5.70 due to bugfixes in this release,
-#    although it should still also work with older LWP versions.
-#  * Documentation fixes.
-#
-# Revision 1.73  2003/08/31 17:25:09  graaff
-# Checkbot now tries to produce valid XHTML 1.1, URLs matching the
-# --ignore option are now completely ignored; they used to be checked
-# but not reported, Proxy support works again, but --proxy now applies
-# to all link, Documentation fixes.
-#
-# Revision 1.72  2003/05/04 18:36:03  graaff
-#  * URLs with query strings are now checked by default, the --exclude
-#    option can be used to revert to the previous behavior
-#  * The server results page contains shortcut links to each section
-#  * Removed warning for unqualified hostnames for news: URLs
-#  * Handling of signals such as SIGINT
-#  * Bug and documentation fixes
-#
-# Revision 1.71  2002/12/29 14:41:33  graaff
-# Two remaining bugs in new implementation fixed.
-#
-# Revision 1.70  2002/12/29 13:47:06  graaff
-# New --filter option allows rewriting of URLs before they will be
-# checked; Problematic links are now reported for each page on which
-# they occur; New statistics which should work correctly; Much
-# simplified storage of information on problem links; Duplicate links
-# are now properly detected and not checked twice; Rewritten internals
-# for link checking, as a consequence internal and external links are checked at the same time now, not in two passes like before; Rewritten internals for message output; A simple test case for 'make test'; Minor cleanups of the code.
-#
-# Revision 1.69  2002/12/25 14:53:30  graaff
-# Improved makefile and packaging, Better default for --match argument,
-# Additional instance of using GET instead of HEAD added,
-# Bug fixes in printing of web server feedback
-#
-# Revision 1.68  2002/09/28 21:02:45  graaff
-# Version 1.68
-#
-# Revision 1.67  2001/12/16 16:15:55  graaff
-#  * A --language option to ask the server for pages in other languages
-#  * Bug fixes related to URI package and non-standard server names
-#  * Some other minor bugfixes detailed in the ChangeLog
-#  * Added example for use of the --match argument
-#
-# Revision 1.66  2001/10/25 19:46:42  graaff
-# Fixed two bugs introduced in 1.65 related to using URI.
-#
-# Revision 1.65  2001/10/21 08:07:19  graaff
-#  * Move to URI from URI::URL
-#  * Start writing results pages right at the start
-#  * A few small bugs fixed (see ChangeLog)
-#
-# Revision 1.64  2001/04/15 19:34:30  graaff
-# Fix printing of starting URLs in email, removed duplicate header in
-# report, try more environment variables to set temporary directory,
-# avoid using printf on pipes, and fix silly typo.
-#
-# Revision 1.63  2001/01/14 15:25:52  graaff
-#  * Require LWP 5.50. A bug fix was introduced in LWP 5.49 which solves
-#    problems with relative Location: headers for Checkbot.
-#  * Create a defaults --match argument based on all the start URLs, not
-#    just the first one.
-#  * Remove .bak files when the new files are written correctly.
-#  * Create correct URLs when --file argument also contains directories.
-#  * Deal with redirects without a Location: header.
-#  * Don't exclude checkbot's own pages automagically.
-#  * Always ask server about file type for HTTP requests when uncertain.
-#  * Make output well-formed HTML.
-#  * Several typo's and other output fixes.
-#
-# Revision 1.62  2000/09/24 13:51:46  graaff
-# Checkbot 1.62.
-#
-# Revision 1.61  2000/06/29 19:56:48  graaff
-# Updated Makefile.PL
-# Use GET instead of HEAD for confused servers.
-# Update email and web address.
-#
-# Revision 1.60  2000/04/30 13:34:32  graaff
-# Add option --dontwarn to avoid listing certain HTTP responses. Deal
-# with 300 Multiple Choices HTTP Response. Fix warning with
-# --internal-only option and add message when used. Use MacPerl stuff to
-# get command line options on a Mac. Check whether URLs on command line
-# have a proper host.
-#
-# Revision 1.59  2000/01/30 20:23:32  graaff
-# --internal-only option, hide some warnings when not running verbose,
-# and fixed a warning.
-#
-# Revision 1.58  2000/01/02 15:39:59  graaff
-# Deal with hostnameless URIs, use TMPDIR where available, and work
-# nicely with the new HTML::LinkExtor.
-#
-# Revision 1.57  1999/10/24 16:11:00  graaff
-# Added URI check.
-#
-# Revision 1.56  1999/07/31 14:52:17  graaff
-# Fixed redirection URL's, deal with new URI way of handling
-# hostname-less URI's.
-#
-# Revision 1.55  1999/05/09 15:30:34  graaff
-# List broken links under the pages that contain them, instead of the
-# other way around, reverting back to the way things are in 1.53 and
-# earlier.
-# Handle redirected, but unqualified links.
-# Only print each warning header once.
-# Documentation fixes.
-#
-# Revision 1.54  1999/01/18 22:22:29  graaff
-# Fixed counting of problem links to correct checkbot.html results page.
-#
-# Revision 1.53  1999/01/17 20:59:14  graaff
-# Fixed internal problem storage.
-# Changed report to collate HTTP response codes.
-# Added warning section to pages with additional warnings.
-# Hammered out bug with record separator in perl 5.005.
-#
-# Revision 1.52  1998/10/10 08:41:50  graaff
-# new version, some documentation work, and the HTML::Parse problem fixed.
-#
-# Revision 1.51  1997/09/06 14:01:58  graaff
-# per 5.004 changes and address changes
-#
-# Revision 1.50  1997/04/28 07:10:26  graaff
-# Fixed small problem with VERSION
-#
-# Revision 1.49  1997/04/27 19:24:22  graaff
-# A bunch of smaller stuff
-#
-# Revision 1.48  1997/04/05 15:28:35  graaff
-# Small fixes
-#
-# Revision 1.47  1997/01/28 13:48:00  graaff
-# Protect against corrupted todo link count
-#
-# Revision 1.46  1996/12/30 15:27:11  graaff
-# Several bugs fixed and features added, see changelog
-#
-# Revision 1.45  1996/12/24 13:59:15  graaff
-# Deal with IP address not found.
-#
-# Revision 1.44  1996/12/11 16:16:07  graaff
-# Proxy support, small bugs fixed.
-#
-# Revision 1.43  1996/12/05 12:35:41  graaff
-# Checked URLs indexed with IP address, small changes to layout etc.
-#
-# Revision 1.42  1996/11/04 13:21:07  graaff
-# Fixed several small problems. See ChangeLog.
-#
-# Revision 1.41  1996/10/04 15:15:35  graaff
-# use long option names now
-#
-# Revision 1.40  1996/09/28 08:18:14  graaff
-# updated, see ChangeLog
-#
-# Revision 1.39  1996/09/25 13:25:48  graaff
-# update rev
-#
-# Revision 1.4  1996/09/25 12:53:04  graaff
-# Moved checkbot back to checkbot.pl so that we can substitute some
-# variables upon installation.
-#
-# Revision 1.37  1996/09/12 13:12:05  graaff
-# Updates, and checkbot now requires LWP 5.02, which fixes some bugs.
-#
-# Revision 1.36  1996/09/05 14:13:58  graaff
-# Mainly documentation fixes. Also fixed comparison.
-#
-# Revision 1.35  1996/09/01 19:39:24  graaff
-# Small stuff. See Changelog.
-#
-# Revision 1.34  1996/08/07 08:10:18  graaff
-# Stupid bug in parsing the LinkExtor output fixed.
-#
-# Revision 1.33  1996/08/05 06:47:43  graaff
-# Fixed silly bug in calculation of percentage for each server.
-#
-# Revision 1.32  1996/08/02 21:51:18  graaff
-# Use the new LinkExtor to retrieve links from a document. Uses less
-# memory, and should be quicker.
-#
-# Revision 1.31  1996/08/02 21:38:39  graaff
-# Added a number of patches by Bruce Speyer.
-# Added POD documentation.
-# Added summary to mail message.
-#
-# Revision 1.30  1996/08/02 11:11:09  graaff
-# See ChangeLog
-#
-# Revision 1.29  1996/07/27 20:28:35  graaff
-# See Changelog
-#
-# Revision 1.28  1996/07/23 12:32:09  graaff
-# See ChangeLog
-#
-# Revision 1.27  1996/07/22 20:34:44  graaff
-# Fixed silly bug in columns printf
-#
-# Revision 1.26  1996/06/22 12:52:57  graaff
-# redirection, optimization, correct base url
-#
-# Revision 1.25  1996/06/20 14:13:52  graaff
-# Major rewrite of initialization. Fixed todo links indicators.
-#
-# Revision 1.24  1996/06/19 15:49:38  graaff
-# added -M option, fixed division by 0 bug
-#
-# Revision 1.23  1996/06/01 17:33:40  graaff
-# lwp-win32 changes, and counting cleanup
-#
-# Revision 1.22  1996/05/29 18:36:37  graaff
-# Fixed error in regexp, small bugs
-#
-# Revision 1.21  1996/05/26 08:06:13  graaff
-# Possibly add ending slash to URL's
-#
-# Revision 1.20  1996/05/13 17:01:17  graaff
-# hide messages behind verbose flag
-#
-# Revision 1.19  1996/05/13 13:05:53  graaff
-# See ChangeLog
-#
-# Revision 1.18  1996/05/05 07:25:38  graaff
-# see changelog
-#
-# Revision 1.17  1996/04/29 16:23:11  graaff
-# Updated, see Changelog for details.
-#
-# Revision 1.16  1996/04/29 06:43:57  graaff
-# Updated
-#
-# Revision 1.15  1996/04/28 19:42:11  graaff
-# See Changelog
-#
-# Revision 1.14  1996/03/29 10:09:36  graaff
-# See ChangeLog
-#
-# Revision 1.13  1996/03/24 19:16:23  graaff
-# See Changelog
-#
-# Revision 1.12  1996/03/22 13:10:03  graaff
-# *** empty log message ***
-#
-# Revision 1.11  1996/03/17 09:33:26  graaff
-# See ChangeLog
-#
-# Revision 1.10  1996/02/27 09:05:22  graaff
-# See ChangeLog
-#
-# Revision 1.9  1996/02/26 14:47:31  graaff
-# Fixed bug with referer field, added -x option to help, make server
-# page auto-refresh.
-#
-# Revision 1.8  1996/02/24 12:14:48  graaff
-# Added -x option
-#
-# Revision 1.7  1995/12/08 12:44:33  graaff
-# Major rewrite of internals
-# Changed the way the checked links are kept
-#
-# Revision 1.6  1995/11/29 07:52:10  graaff
-# Small fixes to verbose layout.
-#
-# Revision 1.5  1995/11/27 08:50:46  graaff
-# stupid bug in calling sort
-#
-# Revision 1.4  1995/11/24 15:48:34  graaff
-# Fixed numerous small problems, mostly in the output.
-# Fixed checking of external links (each link now gets checked only once)
-# Sorting of errors is now done by error code, by error text, by page.
-#
-# Revision 1.3  1995/11/22 09:51:58  graaff
-# Last part of major revision towards Perl 5 and libwww5. Checkbot now
-# seems to work again, and at least generates the proper reports.
-# However, more work, in particular cleanups, is needed.
-#
-# Revision 1.2  1995/08/25 11:28:57  graaff
-# First rewrite towards perl 5, most stuff done in a crude way.
-#
-# Revision 1.1  1995/08/25 09:16:29  graaff
-# First version is identical to the perl4 version. I will change it
-# gradually.
-#

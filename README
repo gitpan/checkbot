@@ -52,6 +52,17 @@ Hans de Graaff <hans@degraaff.org>
 
 RECENT CHANGES
 
+Changes in version 1.78 (3-May-2006)
+
+    * Don't throw errors for links that cannot be expected to be valid
+      all the time (e.g. the classid attribute of an object element)
+    * Better fallbacks for some cases where the HEAD request does not
+      work
+    * Add more classes and ids to allow more styling of results pages
+      (including example CSS file)
+    * Ensure XHTML compliance
+    * Better checks for optional dependencies
+
 Changes in version 1.77 (28-Jul-2005)
 
     * Fix silly build-related problem that prevented checkbot 1.76 from

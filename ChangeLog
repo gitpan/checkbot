@@ -1,3 +1,49 @@
+2006-05-03  Hans de Graaff  <hans@degraaff.org>
+
+	* Checkbot 1.78 is released
+
+2005-12-18  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (printServerProblems): Make pages XHTML compliant again.
+
+2005-12-18  Jens Schweikhardt  <schweikh@schweikhardt.net>
+
+	* checkbot: Add classes and ids so that more styling options for
+	CSS are available.
+	* checkbot2.css: Example CSS file using the new classes and ids.
+
+2005-11-11  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot: React in a more subtle way if the Time::Duration
+	module is not found.
+
+2005-09-22  Hans de Graaff  <hans@degraaff.org>
+
+	* Makefile.PL: Check for presence of Net::SSL and explain the
+	effects if this it not present.
+
+2005-08-20  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (handle_doc): Ignore some 'links' found by LinkExtor
+	which do not need to link to live links. Fixed bugs #1264447 and
+	#1107832. 
+
+	* test.html: Add test cases for it.
+
+2005-08-06  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (performRequest): Switch from HEAD to GET on a 400
+	error, as the most likely cause is that the server has trouble
+	with HEAD requests.
+
+2005-08-05  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (handle_doc): Also show how many new links are found on
+	a page, not just the total number of links.
+	(performRequest): Don't retry GET method on a 403 error.
+	(handle_doc): Properly handle newlines in the matches for title
+	and robots meta tag.
+
 2005-07-28  Hans de Graaff  <hans@degraaff.org>
 
 	* Checkbot 1.77 is released.

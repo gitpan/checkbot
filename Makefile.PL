@@ -1,6 +1,6 @@
 # This -*- perl -*- script makes the Makefile
 # Based on the Makefile.PL in the libwww-perl distribution
-# $Id: Makefile.PL,v 1.13 2005/01/23 15:32:52 graaff Exp $
+# $Id: Makefile.PL,v 1.14 2005/12/18 19:16:21 graaff Exp $
 
 require 5.005;
 use strict;
@@ -160,6 +160,25 @@ EOT
     print " ok\n";
 }
 
+print "Checking for Net::SSL ..";
+eval {
+    require Net::SSL;
+};
+if ($@) {
+    print " failed\n";
+    $missing_modules++;
+    print <<EOT;
+$@ 
+
+Net::SSL is used to check https links. If Net::SSL is not available
+Checkbot will still work, but it is not possible to check https://
+links. Net::SSL is part of the Crypt::SSLeay package. Note that this
+package in turn depends on the openssl tools.
+
+EOT
+} else {
+    print " ok\n";
+}
 print <<EOT if $missing_modules;
 The missing modules can be obtained from CPAN.  Visit
 <URL:http://www.perl.com/CPAN/> to find a CPAN site near you.
