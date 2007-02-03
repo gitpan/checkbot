@@ -13,7 +13,7 @@
 # Info-URL: http://degraaff.org/checkbot/
 # Comments to: checkbot@degraaff.org
 #
-# $Id: checkbot,v 1.93 2006/05/03 20:13:21 graaff Exp $
+# $Id: checkbot 228 2007-02-03 16:05:13Z graaff $
 # (Log information can be found at the end of the script)
 
 require 5.004;
@@ -29,7 +29,7 @@ BEGIN {
 
 # Version information
 my
-$VERSION = '1.78';
+$VERSION = '1.79';
 
 
 =head1 NAME
@@ -301,6 +301,12 @@ added to the file by starting the line with a C<#> character.
   
   # 403 Forbidden
   403   http://www.herring.com/
+
+For further flexibility a regular expression can be used instead of a
+normal URL. The regular expression must be enclosed with forward
+slashes. For example, to suppress all 403 errors on wikipedia:
+
+  403   /http:\/\/wikipedia.org\/.*/
 
 =back
 
@@ -607,6 +613,9 @@ sub init_globals {
 sub init_suppression {
   return if not defined $main::opt_suppress;
 
+  die "Suppression file \"$main::opt_suppress\" is in fact a directory"
+	if -d $main::opt_suppress;
+
   open(SUPPRESSIONS, $main::opt_suppress)
     or die "Unable to open $main::opt_suppress for reading: $!\n";
   while (my $line = <SUPPRESSIONS>) {
@@ -617,7 +626,7 @@ sub init_suppression {
       output "WARNING: Unable to parse line in suppression file $main::opt_suppress:\n    $line\n";
     } else {
       output "Suppressed: $1 $2\n" if $main::opt_verbose;
-      $suppression{$1}{$2} = 1;
+      $suppression{$1}{$2} = $2;
     }
   }
   close SUPPRESSIONS;
@@ -781,7 +790,9 @@ sub handle_url {
       unless $main::opt_debug || $url->scheme eq 'file';
 
     # Internal HTML documents need to be given to handle_doc for processing
-    handle_doc($response) if $reqtype eq 'GET' and is_internal($url->as_string);
+	if ($reqtype eq 'GET' and is_internal($url->as_string)) {
+	  handle_doc($response, $urlstr);
+	}
   } else {
 
     # Right, so it wasn't the smashing succes we hoped for, so bring
@@ -815,7 +826,10 @@ sub performRequest {
   # A better solution here would be to use GET exclusively. Here is how
   # to do that. We would have to set this max_size thing in
   # check_external, I guess...
-  # Set $ua->max_size(1) and then try a normal GET request.
+  # Set $ua->max_size(1) and then try a normal GET request. However,
+  # that doesn't always work as evidenced by an FTP server that just
+  # hangs in this case... Needs more testing to see if the timeout
+  # catches this.
 
   # Normally, we would only need to do a HEAD, but given the way LWP
   # handles gopher requests, we need to do a GET on those to get at
@@ -865,46 +879,35 @@ sub performRequest {
       # a 403 indicates that the server understood us fine but really does
 	  # not want us to see the page, so we SHOULD NOT retry.
       if ($response->code =~ /^(400|405|406|501)$/o) {
-	output "Server does not seem to like HEAD requests; retrying", 2;
-	$main::servers_get_only{$url->authority}++;
-	next;
+		output "Server does not seem to like HEAD requests; retrying", 2;
+		$main::servers_get_only{$url->authority}++;
+		next;
       };
 
-      # Microsoft IIS has been seen dropping the connection prematurely
-      # when it should be returning 405 instead
-      if ($response->status_line =~ /^500 unexpected EOF/o) {
-	output "Server hung up on HEAD request; retrying", 2;
-	$main::servers_get_only{$url->authority}++;
-	next;
-      };
+	  # There are many servers out there that have real trouble with
+	  # HEAD, so if we get a 500 Internal Server error just retry with
+	  # a GET request to get an authoritive answer. We used to do this
+	  # only for special cases, but the list got big and some
+	  # combinations (e.g. Zope server behind Apache proxy) can't
+	  # easily be detected from the headers.
+	  if ($response->code =~ /^500$/o) {
+		output "Internal server error on HEAD request; retrying with GET", 2;
+		$main::servers_get_only{$url->authority}++ if defined $url->authority;
+		next;
+	  }
 
       # If we know the server we can try some specific heuristics
       if (defined $response->server) {
 
-	# Netscape Enterprise has been seen returning 500 and even 404
-	# (yes, 404!!) in response to HEAD requests
-	if ($response->server =~ /^Netscape-Enterprise/o
-	    and $response->code =~ /^(404|500)$/o) {
-	  output "Unreliable Netscape-Enterprise response to HEAD request; retrying", 2;
-	  $main::servers_get_only{$url->authority}++;
-	  next;
-	};
-
-	# JavaWebServer/1.1.3 has been seen returning 500
-	if ($response->server =~ /^JavaWebServer/o 
-	    and $response->code =~ /^500$/o) {
-	  output "Unreliable JavaWebServer response to HEAD request; retrying", 2;
-	  $main::servers_get_only{$url->authority}++;
-	  next;
-	};
-
-	# ALEPH has been seen returning 500
-	if ($response->server =~ /^ALEPH/o and $response->code =~ /^500$/o) {
-	  output "Unreliable response to HEAD request; retrying", 2;
-	  $main::servers_get_only{$url->authority}++;
-	  next;
-	};
-      }
+		# Netscape Enterprise has been seen returning 500 and even 404
+		# (yes, 404!!) in response to HEAD requests
+		if ($response->server =~ /^Netscape-Enterprise/o
+			and $response->code =~ /^404$/o) {
+		  output "Unreliable Netscape-Enterprise response to HEAD request; retrying", 2;
+		  $main::servers_get_only{$url->authority}++;
+		  next;
+		};
+	  }
 
       # If a HEAD request resulted in nothing noteworthy, no need for
       # any further attempts using GET, we are done.
@@ -949,7 +952,7 @@ sub create_page {
     print OUT "<h1><em>Checkbot</em>: main report</h1>\n";
 
     # Show the status of this checkbot session
-    print OUT "<table class='status'><tr><th>Status:</th><td>";
+    print OUT "<table summary=\"Status of this Checkbot session\" class='status'><tr><th>Status:</th><td>";
     if ($final_page) {
       print OUT "Done.<br />\n";
       print OUT 'Run started on ' . localtime($start_time) . ".<br />\n";
@@ -965,7 +968,7 @@ sub create_page {
     # Summary (very brief overview of key statistics)
     print OUT "<hr /><h2 class='summary'>Report summary</h2>\n";
 
-    print OUT "<table class='summary'>\n";
+    print OUT "<table summary=\"Report summary\" class='summary'>\n";
     print OUT "<tr id='checked'><th>Links checked</th><td class='value'>", $stats{'link'}, "</td></tr>\n";
     print OUT "<tr id='problems'><th>Problems so far</th><td class='value'>", $stats{'problem'}, "</td></tr>\n";
     print OUT "<tr id='todo'><th>Links to do</th><td class='value'>", $stats{'todo'}, "</td></tr>\n";
@@ -976,7 +979,7 @@ sub create_page {
 
     # Checkbot session parameters
     print OUT "<hr /><h2 class='params'>Checkbot session parameters</h2>\n";
-    print OUT "<table class='params'>\n";
+    print OUT "<table summary=\"Checkbot session parameters\" class='params'>\n";
     print OUT "<tr><th align=\"left\">--url &amp;<br/> &lt;command line urls&gt;</th><td class='text'>Start URL(s)</td><td class='value' id='url'>",
               join(',', @starturls), "</td></tr>\n";
     print OUT "<tr><th align=\"left\">--match</th><td class='text'>Match regular expression</td><td class='value' id='match'>$main::opt_match</td></tr>\n";
@@ -1022,7 +1025,7 @@ sub printAllServers {
 
   my $server;
   print OUT "<hr /><h2 class='overview'>Overview per server</h2>\n";
-  print OUT "<table class='overview'><tr><th>Server</th><th>Server<br />Type</th><th>Unique<br />links</th><th>Problem<br />links</th><th>Ratio</th></tr>\n";
+  print OUT "<table summary=\"Overview per server\" class='overview'><tr><th>Server</th><th>Server<br />Type</th><th>Unique<br />links</th><th>Problem<br />links</th><th>Ratio</th></tr>\n";
 
   foreach $server (sort keys %main::servers) {
     print_server($server, $finalPage);
@@ -1097,8 +1100,22 @@ sub is_checked {
 sub add_error ($$$$) {
   my ($url, $urlparent, $code, $status) = @_;
 
+  # Check for the quick eliminations first
   return if $code =~ /$main::opt_dontwarn/o
     or defined $suppression{$code}{$url};
+
+  # Check for matches on the regular expressions in the supression file
+  if (defined $suppression{$code}) {
+	foreach my $item ( %{$suppression{$code}} ) {
+	  if ($item =~ /^\/(.*)\/$/) {
+		my $regexp = $1;
+		if ($url =~ $regexp) {
+		  output "Supressing error $code for $url due to regular expression match on $regexp", 2;
+		  return;
+		}
+	  }
+	}
+  }
 
   $status = checkbot_status_message($code) if not defined $status;
 
@@ -1112,7 +1129,7 @@ sub add_error ($$$$) {
 
 # Parse document, and get the links
 sub handle_doc {
-  my ($response) = @_;
+  my ($response, $urlstr) = @_;
 
   my $num_links = 0;
   my $new_links = 0;
@@ -1123,12 +1140,13 @@ sub handle_doc {
   # valid... Aha. a simple <base href="news:"> will do the trick. It is
   # not clear what the right fix for this is.
 
-  # TODO: $response->base might not be the page we checked, so it is
-  # not the proper measurement to count the server hits. Conceivably
-  # the base might point to a different server altogether.
+  # We use the URL we used to retrieve this document as the URL to
+  # attach the problem reports to, even though this may not be the
+  # proper base url.
+  my $baseurl = URI->new($urlstr);
 
   # When we received the document we can add a notch to its server
-  $main::servers{$response->base->authority}++;
+  $main::servers{$baseurl->authority}++;
 
   # Retrieve useful information from this document.
   # TODO: using a regexp is NOT how this should be done, but it is
@@ -1141,7 +1159,7 @@ sub handle_doc {
 	# consume too much memory. It would be better to only store the
 	# titles for requests that had problems. That requires passing them
 	# down to the queue. Take the easy way out for now.
-	$url_title{$response->base} = $1;
+	$url_title{$baseurl} = $1;
   }
 
   # Check if this document has a Robots META tag. If so, check if
@@ -1155,9 +1173,11 @@ sub handle_doc {
   }
 
 
-  # Parse the document just downloaded
+  # Parse the document just downloaded, using the base url as defined
+  # in the response, otherwise we won't get the same behavior as
+  # browsers and miss things like a BASE url in pages.
   my $p = HTML::LinkExtor->new(undef, $response->base);
-  $p->parse($response->content);
+  $p->parse($response->decoded_content);
   $p->eof;
 
   # Deal with the links we found in this document
@@ -1196,10 +1216,10 @@ sub handle_doc {
       # Check whether URL has fully-qualified hostname
       if ($url->can('host') and $url->scheme ne 'news') {
         if (! defined $url->host) {
-		  add_error($url, $response->base->as_string, '901',
+		  add_error($url, $baseurl->as_string, '901',
 					$checkbot_errors{'901'});
         } elsif (!$main::opt_allow_simple_hosts && $url->host !~ /\./) {
-		  add_error($url, $response->base->as_string, '902',
+		  add_error($url, $baseurl->as_string, '902',
 					$checkbot_errors{'902'});
         }
       }
@@ -1211,7 +1231,7 @@ sub handle_doc {
       # e.g. <http://deesse.univ-lemans.fr:8003/Connected/RFC/1808/18.html>.
       # Thanks to Randal Schwartz and Reinier Post for their explanations.
       if ($url =~ /^http:\/\/.*\/\//) {
-		add_error($url, $response->base->as_string, '903',
+		add_error($url, $baseurl->as_string, '903',
 				  $checkbot_errors{'903'});
       }
 
@@ -1223,13 +1243,13 @@ sub handle_doc {
 		# current parent to the list of parents on which this URL
 		# appears.
 		if (defined $url_error{$url}) {
-		  push @{$url_parent{$url}}, $response->base->as_string;
+		  push @{$url_parent{$url}}, $baseurl->as_string;
 		  $stats{'problem'}++;
 		}
 	
 		$stats{'link'}++;
       } else {
-		add_to_queue($url, $response->base);
+		add_to_queue($url, $baseurl);
 		$stats{'todo'}++;
 		$new_links++;
       }
@@ -1316,7 +1336,7 @@ sub print_server ($$) {
 # Return a string containing Checkbot's signature for HTML pages
 sub signature {
   return "<hr />\n<p class='signature'>Page created by <a href=\"http://degraaff.org/checkbot/\">Checkbot $VERSION</a> on <em>" . localtime() . "</em>.</p>\n".
-    "<p><a href=\"http://validator.w3.org/check/referer\"><img src=\"http://www.w3.org/Icons/valid-xhtml11\" alt=\"Valid XHTML 1.1!\" height=\"31\" width=\"88\" /></a></p>".
+    "<p><a href=\"http://validator.w3.org/check/?uri=referer\"><img src=\"http://www.w3.org/Icons/valid-xhtml11\" alt=\"Valid XHTML 1.1\" height=\"31\" width=\"88\" /></a></p>".
     "</body></html>";
 }
 
@@ -1394,6 +1414,7 @@ sub send_mail {
   my $msg = new Mail::Send;
   my $sub = 'Checkbot results for ';
   $sub .= join(', ', @starturls);
+  $sub .= ': ' . $stats{'problem'} . ' errors';
 
   $msg->to($main::opt_mailto);
   $msg->subject($sub);

@@ -52,6 +52,18 @@ Hans de Graaff <hans@degraaff.org>
 
 RECENT CHANGES
 
+Changes in version 1.79 (3-Feb-2007)
+
+    * Correctly parse documents to avoid problems with UTF-8
+      documents. This avoids the "Parsing of undecoded UTF-8 will give
+      garbage when decoding entities" messages.
+    * Allow regular expressions in the suppression file, and complain if
+      the suppression file is not a proper file.
+    * More robust handling of HTTP and FTP servers that have problems
+      responding to HEAD requests.
+    * Use the original URL to report problems.
+    * Ensure XHTML compliance.
+
 Changes in version 1.78 (3-May-2006)
 
     * Don't throw errors for links that cannot be expected to be valid

@@ -1,3 +1,51 @@
+2007-02-03  Hans de Graaff  <hans@degraaff.org>
+
+	* Checkbot 1.79 is released
+
+	* RELEASE-PROCESS: Add the release process documentation.
+
+2007-01-27  Gerald Pfeifer  <gerald@pfeifer.com>
+
+	* checkbot (init_suppression): Check and provide error if
+	suppression file is in fact a directory.
+
+2006-12-28  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot: Add summary to tables to make files XHTML 1.1 compliant.
+
+2006-11-16  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (handle_doc): Parse the decoded content so that all
+	character set issues are dealt with before parsing. This solves
+	bug 1264729.
+
+2006-11-14  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (performRequest): Simplify the code dealing with
+	problems of HEAD requests by retrying all 500 reponses instead of
+	special-cases particular failures that we happen to know
+	about. This type of problem is all to common, and if there really
+	is a problem GET will find it anyway.
+	(add_error): Allow regular expressions in the suppression
+	file. Based on patch from Eric Noack
+
+2006-11-14  Eric Noack  <en@lightwerk.com>
+
+	* checkbot (send_mail): Indicate how many errors are detected in
+	the notification email's subject.
+	(handle_doc): Use the URL with which the document was received for
+	the problem reports and internal accounting, but keep on using the
+	proper base URL as defined by the reponse object when retrieving
+	links from the document. This fixes the case where a weird BASE
+	URL in a document could make it unclear where the actual problem
+	was.
+
+2006-10-28  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (performRequest): Handle case where an FTP server may
+	not be able to handle a HEAD request. This may cause a lot of data
+	to be transferred in those cases.
+
 2006-05-03  Hans de Graaff  <hans@degraaff.org>
 
 	* Checkbot 1.78 is released

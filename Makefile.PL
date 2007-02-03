@@ -1,6 +1,6 @@
 # This -*- perl -*- script makes the Makefile
 # Based on the Makefile.PL in the libwww-perl distribution
-# $Id: Makefile.PL,v 1.14 2005/12/18 19:16:21 graaff Exp $
+# $Id: Makefile.PL 214 2005-12-18 19:16:21Z graaff $
 
 require 5.005;
 use strict;
