@@ -1,3 +1,36 @@
+2008-10-15  Hans de Graaff  <hans@degraaff.org>
+
+	* Checkbot 1.80 is released
+
+2008-07-08  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (handle_doc): Tighten up the check for a robots tag so
+	that nofollow text later in the document won't be matched, thus
+	skipping the whole document, bug 2005950.
+
+2007-05-05  Brandon Bell  <Brandon_Bell@bcit.ca>
+
+	* checkbot: mms scheme can be ignored safely.
+
+2007-04-30  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (printAllServers): Clarify that 'Unique links' actually
+	is 'Documents scanned'.
+
+2007-02-26  Hans de Graaff  <hans@degraaff.org>
+
+	* checkbot (handle_doc): Handle the case where decoded_content is
+	not available as per bug 1665075.
+
+2007-02-26  Gerald Preifer  <gerald@pfeifer.com>
+
+	* checkbot (check_point): Simplify and add a comment.
+
+2007-02-26  Hans de Graaff  <hans@degraaff.org>
+
+	* Makefile.PL: Require LWP 5.803 or better. decoded_content got
+	added in 5.802 and 5.803 added some important bugfixes.
+
 2007-02-03  Hans de Graaff  <hans@degraaff.org>
 
 	* Checkbot 1.79 is released

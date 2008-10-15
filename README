@@ -52,6 +52,14 @@ Hans de Graaff <hans@degraaff.org>
 
 RECENT CHANGES
 
+Changes in versino 1.80 (15-Oct-2008)
+
+    * Fix handling of nofollow robots tag.
+    * Require newer version of LWP for better handling of character
+      encodings.
+    * Ignore mms scheme.
+    * Minor clarification in output.
+
 Changes in version 1.79 (3-Feb-2007)
 
     * Correctly parse documents to avoid problems with UTF-8

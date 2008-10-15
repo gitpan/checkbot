@@ -1,6 +1,6 @@
 # This -*- perl -*- script makes the Makefile
 # Based on the Makefile.PL in the libwww-perl distribution
-# $Id: Makefile.PL 214 2005-12-18 19:16:21Z graaff $
+# $Id: Makefile.PL 231 2007-02-26 15:51:46Z graaff $
 
 require 5.005;
 use strict;
@@ -12,7 +12,7 @@ my $missing_modules = 0;
 print "\nChecking for LWP...........";
 eval {
     require LWP;
-    LWP->VERSION(5.76);
+    LWP->VERSION(5.803);
 };
 if ($@) {
     print " failed\n";

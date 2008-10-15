@@ -11,9 +11,8 @@
 # modify it under the same terms as Perl itself.
 #
 # Info-URL: http://degraaff.org/checkbot/
-# Comments to: checkbot@degraaff.org
 #
-# $Id: checkbot 228 2007-02-03 16:05:13Z graaff $
+# $Id: checkbot 238 2008-10-15 12:55:00Z graaff $
 # (Log information can be found at the end of the script)
 
 require 5.004;
@@ -29,7 +28,7 @@ BEGIN {
 
 # Version information
 my
-$VERSION = '1.79';
+$VERSION = '1.80';
 
 
 =head1 NAME
@@ -746,7 +745,7 @@ sub handle_url {
   if (not defined($url->scheme) 
       or $url->scheme !~ /^(https?|file|ftp|gopher|nntp)$/o ) {
     # Ignore URLs which we know we can ignore, create error for others
-    if ($url->scheme =~ /^(news|mailto|javascript)$/o) {
+    if ($url->scheme =~ /^(news|mailto|javascript|mms)$/o) {
       output "Ignore $url", 1;
     } else {
       add_error($urlstr, $urlparent, 904, "Unknown scheme in URL: "
@@ -1025,7 +1024,7 @@ sub printAllServers {
 
   my $server;
   print OUT "<hr /><h2 class='overview'>Overview per server</h2>\n";
-  print OUT "<table summary=\"Overview per server\" class='overview'><tr><th>Server</th><th>Server<br />Type</th><th>Unique<br />links</th><th>Problem<br />links</th><th>Ratio</th></tr>\n";
+  print OUT "<table summary=\"Overview per server\" class='overview'><tr><th>Server</th><th>Server<br />Type</th><th>Documents<br />scanned</th><th>Problem<br />links</th><th>Ratio</th></tr>\n";
 
   foreach $server (sort keys %main::servers) {
     print_server($server, $finalPage);
@@ -1167,7 +1166,7 @@ sub handle_doc {
   # ignore the INDEX directive because Checkbot is not an indexing
   # robot. See http://www.robotstxt.org/wc/meta-user.html
   # TODO: one more reason (see title) to properly parse this document...
-  if ($response->content =~ /\<meta.*?robots.*?nofollow.*?\>/si) {
+  if ($response->content =~ /\<meta[^\>]*?robots[^\>]*?nofollow[^\>]*?\>/si) {
 	output "Obeying robots meta tag $&, skipping document", 2;
 	return;
   }
@@ -1177,7 +1176,12 @@ sub handle_doc {
   # in the response, otherwise we won't get the same behavior as
   # browsers and miss things like a BASE url in pages.
   my $p = HTML::LinkExtor->new(undef, $response->base);
-  $p->parse($response->decoded_content);
+
+  # If charset information is missing then decoded_content doesn't
+  # work. Fall back to content in this case, even though that may lead
+  # to charset warnings. See bug 1665075 for reference.
+  my $content = $response->decoded_content || $response->content;
+  $p->parse($content);
   $p->eof;
 
   # Deal with the links we found in this document
@@ -1401,13 +1405,15 @@ sub printServerProblems ($$) {
 }
 
 sub check_point {
-    if ( ($main::cp_last + 60 * $main::cp_int < time()) 
-	 || ($main::opt_debug && $main::opt_verbose)) {
+  if ( ($main::cp_last + 60 * $main::cp_int < time()) 
+	   || ($main::opt_debug && $main::opt_verbose)) {
 	&create_page(0);
 	$main::cp_last = time();
-	$main::cp_int = $main::cp_int * 1.25 unless $main::opt_debug;
-        $main::cp_int = $main::cp_int > $main::opt_interval ? $main::opt_interval : $main::cp_int;
-    }
+	# Increase the intervall from one snapshot to the next by 25%
+	# until we have reached the maximum.
+	$main::cp_int *= 1.25 unless $main::opt_debug;
+	$main::cp_int = $main::opt_interval if $main::cp_int > $main::opt_interval;
+  }
 }
 
 sub send_mail {
